@@ -117,7 +117,7 @@ function htmlNestContent(marks, text) {
 function htmlUnnestContent(node, children, marks = []) {
     node.childNodes.forEach(subnode => {
         if (subnode.nodeType === Node.ELEMENT_NODE) {
-            let mark = "error";
+            let mark = "";
             let newmarks = marks.slice();
             const nativeMarks = {
                 "B": "strong", "STRONG": "strong",
