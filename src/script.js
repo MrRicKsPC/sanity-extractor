@@ -108,7 +108,11 @@ async function uploadTranslationFile() {
             .then(response => response.json())
             .then(data => {
                 const pRes = formatSanityULResponse(data);
-                if (!pRes) console.error("PATCH error! Please provide valid Sanity credentials.");  // TODO: Error UI feedback.
+                if (pRes) {
+                    alert("Content successfully updated on Sanity.");
+                } else {
+                    console.error("PATCH error! Please provide valid Sanity credentials.");  // TODO: Error UI feedback.
+                }
             })
             .catch(error => {
                 console.error("Unable to upload translation file.\nHTTP error! Status: ", error);   // TODO: Error UI feedback.
