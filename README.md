@@ -1,2 +1,2 @@
 # sanity_extractor
-A simple tool to extract data from the Sanity API.
+A simple tool to extract/patch translatable data from/to the Sanity API.
