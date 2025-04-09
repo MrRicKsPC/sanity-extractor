@@ -5,5 +5,5 @@ PATHS = {
     "ebpModuleSubpart": ["title", "content"],
     
     // Exercises.
-    "exercise": ["title", "description"],
+    "exercise": ["title", "description", "thumbnail"],
 }
