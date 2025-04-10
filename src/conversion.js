@@ -208,8 +208,8 @@ function applyStyleToHTML(hContent) {
     + "h1, h2, h3, h4, h5, h6 { text-align: center; } "
     + "span[data-mark] { color: #007bff; text-decoration: underline; cursor: pointer; } "
     + "div { max-width: 800pt; margin: 0 auto; box-sizing: border-box; border-bottom: 5pt solid black; padding: 20pt; } "
-    + "img { border: 1pt solid black; display: block; margin: auto; width: 100%; max-width: 500pt; height: auto; max-height: 100%; } "
-    + "embed { display: block; margin: auto; width: 500pt; height: 282pt; }"
+    + "img { border: 2pt solid black; display: block; margin: auto; width: 100%; max-width: 500pt; height: auto; max-height: 100%; } "
+    + "embed { display: block; margin: auto; width: 500pt; height: 285pt; }"
     return hStyle.outerHTML + "\n\n" + hContent;
 }
 
