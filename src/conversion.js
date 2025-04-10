@@ -48,10 +48,11 @@ class subunit {
 
 // Single Portable Text segment.
 class unit {
-    constructor(path = "", content = [], plaintext = true, style = "", list = "") {
+    constructor(path = "", content = [], plaintext = true, style = "", list = "", level = 0) {
         this.path = path;
-        this.style = style;
         this.list = list;
+        this.level = level;
+        this.style = style;
         this.content = content; // List of subunits and rawunits.
         this.plaintext = plaintext;
     }
@@ -71,9 +72,10 @@ function jsonExtractContent(root, node, units, current="") {
 
         // Add portable text to container.
         if (node["_type"] == "block" && isArray(node["children"])) {
-            let u = new unit("", [], false, "normal", "");
+            let u = new unit("", [], false, "normal", "", 0);
             u.style = node["style"] ?? "normal";
             u.list = node["listItem"] ?? "";
+            u.level = node["level"] ?? 1;
             for (let i = 0; i < node["children"].length; i++) {
                 let child = node["children"][i];
 
@@ -139,7 +141,7 @@ function jsonExtractContent(root, node, units, current="") {
         if (current_split.length > 0 && current_split[current_split.length - 1] == "title") {
             style = "h1";
         }
-        units.push(new unit(current, [new subunit([], node)], true, style, ""));
+        units.push(new unit(current, [new subunit([], node)], true, style, "", 0));
     }
 }
 
@@ -207,6 +209,16 @@ function applyStyleToHTML(hContent) {
     + "[data-type=\"pt\"] { color: royalblue; } "
     + "[data-list] { position: relative; padding-left: 3em; } "
     + "[data-list]::before { content: \"•\"; position: absolute; left: 1.5em; } "
+    + "[data-list][data-level=\"2\"] { --indent-level: 2; padding-left: calc(var(--indent-level) * 3em); } "
+    + "[data-list][data-level=\"2\"]::before { --indent-level: 2; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "[data-list][data-level=\"3\"] { --indent-level: 3; padding-left: calc(var(--indent-level) * 3em); } "
+    + "[data-list][data-level=\"3\"]::before { --indent-level: 3; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "[data-list][data-level=\"4\"] { --indent-level: 4; padding-left: calc(var(--indent-level) * 3em); } "
+    + "[data-list][data-level=\"4\"]::before { --indent-level: 4; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "[data-list][data-level=\"5\"] { --indent-level: 5; padding-left: calc(var(--indent-level) * 3em); } "
+    + "[data-list][data-level=\"5\"]::before { --indent-level: 5; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "[data-list][data-level=\"6\"] { --indent-level: 6; padding-left: calc(var(--indent-level) * 3em); } "
+    + "[data-list][data-level=\"6\"]::before { --indent-level: 6; left: calc(var(--indent-level) * 3em - 1.5em); } "
     + "h1 { font-size: 200%; } h2 { font-size: 185%; } h3 { font-size: 170%; } "
     + "h4 { font-size: 155%; } h5 { font-size: 140%; } h6 { font-size: 125%; } "
     + "h1, h2, h3, h4, h5, h6 { text-align: center; } "
@@ -242,6 +254,9 @@ function convertToHTML(jContent) {
             hElement.setAttribute("data-source", units[i].path);
             if (units[i].list.length > 0) {
                 hElement.setAttribute("data-list", units[i].list);
+                if (units[i].level > 1) {
+                    hElement.setAttribute("data-level", units[i].level);
+                }
             }
             if (units[i].plaintext) {
                 hElement.setAttribute("data-type", "pt");
