@@ -1,4 +1,4 @@
-const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`']/;
+const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
 let __words__ = [null, null, null];
