@@ -43,7 +43,7 @@ function readFile(file) {
 }
 
 // Download Translation Files
-async function downloadTranslationFiles(urls, request, single_file) {
+async function downloadTranslationFiles(cont_ids, urls, request, single_file) {
     document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "";
     try {
         let results = [];
@@ -56,6 +56,12 @@ async function downloadTranslationFiles(urls, request, single_file) {
             const data = await response.json();
             results.push(...data["result"]);
         }
+
+        const res_map = {};
+        results.forEach(obj => {
+            res_map[obj._id] = obj;
+        });
+        results = cont_ids.map(id => res_map[id]).filter(obj => obj !== undefined);
         
         if (single_file) {
             let hContent = "";
@@ -212,7 +218,7 @@ document.getElementById("app-document-download").addEventListener("click", funct
     });
 
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
-    downloadTranslationFiles(urls, request, single_file);
+    downloadTranslationFiles(cont_ids, urls, request, single_file);
 });
 
 // Upload Translation file.
