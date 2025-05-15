@@ -170,13 +170,13 @@ async function fetchDrafts(language = "en") {
     if (!response.ok) return displayDraftFetchError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
     const data = await response.json();
-    if (data["result"].length <= 0) displayDraftFetchError(`Could NOT find any "${language}" draft.`);
+    if (data["result"].length <= 0) displayDraftFetchError(`Could NOT find "${language}" exercise drafts.`);
 
     data["result"].forEach((exercice) => {
         if (textField.value.length > 0) {
-            textField.value = `${textField.value}, ${exercice["_id"]}`;
+            textField.value = `${textField.value}, ${exercice["_id"].slice(7)}`;
         } else {
-            textField.value = `${exercice["_id"]}`;
+            textField.value = `${exercice["_id"].slice(7)}`;
         }
     })
 }
