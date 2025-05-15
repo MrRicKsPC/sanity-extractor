@@ -17,7 +17,8 @@
     flex-direction: column;
 }
 
-#app-page {
+#app-page,
+#app-exercises {
     outline-style: solid;
     outline-width: 1pt;
     outline-color: var(--accent-color);
@@ -34,12 +35,14 @@
     overflow-x: hidden;
 }
 
-#app-page::-webkit-scrollbar {
+#app-page::-webkit-scrollbar,
+#app-exercises::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
 
-#app-page > div {
+#app-page > div,
+#app-exercises > div {
     align-items: center;
     box-sizing: border-box;
     display: flex;
@@ -47,11 +50,14 @@
 }
 
 #app-page > h1,
-#app-page > hr {
+#app-page > hr,
+#app-exercises > h1,
+#app-exercises > hr {
     margin: 0.5rem 0rem;
 }
 
-#app-page button {
+#app-page button,
+#app-exercises button {
     max-width: 8rem;
 }
 
@@ -85,6 +91,11 @@
 
 .spacer {
     height: 5rem;
+}
+
+.spacerH {
+    width: 5pt;
+    min-width: 5pt;
 }
 
 #app-tabs-message {

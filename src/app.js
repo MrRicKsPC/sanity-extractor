@@ -21,6 +21,16 @@ function displayUploadError(message) {
     return null;
 }
 
+// Display draft fecth error to user.
+function displayDraftFetchError(message) {
+    document.getElementById("app-en-result-fetch").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display = "none";
+    let errorMessage = document.getElementById("app-fetch-error");
+    errorMessage.textContent = message;
+    errorMessage.style.display = "";
+    return null;
+}
+
 // Download string as file.
 function downloadFile(fData, fName, fType) {
     const blob = new Blob([fData], { "type": fType });
@@ -42,7 +52,7 @@ function readFile(file) {
     });
 }
 
-// Download Translation Files
+// Download Translation Files.
 async function downloadTranslationFiles(cont_ids, urls, request, single_file) {
     document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "";
     try {
@@ -90,7 +100,7 @@ async function downloadTranslationFiles(cont_ids, urls, request, single_file) {
     document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "none";
 }
 
-// Upload Translation Files
+// Upload Translation Files.
 async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
     let hContents = [];
     const files = Array.from(cont_files);
@@ -145,18 +155,47 @@ async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
     document.getElementById("app-document-upload").getElementsByClassName("small-loader")[0].style.display = "none";
 }
 
+// Fetch Draft Exerices.
+async function fetchDrafts(language = "en") {
+    const [project, dataset, token] = __words__;
+    const textField = document.getElementById("app-result-ids");
+    textField.value = "";
+
+    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id in path("drafts.**") && _type=="exercise" && language=="${language}"]{_id}`)
+    }`;
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    const response = await fetch(url, request);
+    if (!response.ok) return displayDraftFetchError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    const data = await response.json();
+    if (data["result"].length <= 0) displayDraftFetchError(`Could NOT find any "${language}" draft.`);
+
+    data["result"].forEach((exercice) => {
+        if (textField.value.length > 0) {
+            textField.value = `${textField.value}, ${exercice["_id"]}`;
+        } else {
+            textField.value = `${exercice["_id"]}`;
+        }
+    })
+}
+
 // Set tabs to only-one active.
 const appTabs = document.getElementById("app-tabs").querySelectorAll(".app-tab");
 appTabs.forEach(tab => {
     tab.addEventListener("click", function() {
         appTabs.forEach(t => t.classList.remove("active"));
         this.classList.add("active");
+        document.getElementById("app-page").style.display = "none";
+        document.getElementById("app-exercises").style.display = "none";
         if (this.id == "tab-translation-files") {
             document.getElementById("app-page").style.display = "";
             document.getElementById("download-error").style.display = "none";
             document.getElementById("upload-error").style.display = "none";
-        } else {
-            document.getElementById("app-page").style.display = "none";
+        } else if (this.id == "tab-exercise-revision") {
+            document.getElementById("app-exercises").style.display = "";
+            document.getElementById("app-fetch-error").style.display = "none";
         }
     });
 });
@@ -233,4 +272,32 @@ document.getElementById("app-document-upload").addEventListener("click", functio
     const force_ids = document.getElementById("app-force-id").checked;
     const cont_files = document.getElementById("app-translation-document").files;
     uploadTranslationFiles(cont_ids, force_ids, cont_files);
+});
+
+// Fetch draft EN exercises.
+document.getElementById("app-en-result-fetch").addEventListener("click", async function(event) {
+    if (document.getElementById("app-en-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-fetch-error").style.display = "none";
+    let [project, dataset, token] = __words__;
+    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+
+    await fetchDrafts("en");
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Fetch draft FR exercises.
+document.getElementById("app-fr-result-fetch").addEventListener("click", async function(event) {
+    if (document.getElementById("app-en-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-fetch-error").style.display = "none";
+    let [project, dataset, token] = __words__;
+    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+
+    await fetchDrafts("fr");
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
