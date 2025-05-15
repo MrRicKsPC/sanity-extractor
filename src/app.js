@@ -174,9 +174,9 @@ async function fetchDrafts(language = "en") {
 
     data["result"].forEach((exercice) => {
         if (textField.value.length > 0) {
-            textField.value = `${textField.value}, ${exercice["_id"].slice(7)}`;
+            textField.value = `${textField.value}, ${exercice["_id"]}`;
         } else {
-            textField.value = `${exercice["_id"].slice(7)}`;
+            textField.value = `${exercice["_id"]}`;
         }
     })
 }
