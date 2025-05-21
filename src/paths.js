@@ -48,7 +48,7 @@ PATHS = {
     "includedItem": ["description"],
     
     // Testimonials.
-    "testimonial": ["name", "title", "image", "content"],
+    "testimonial": ["title", "image", "content", "name"],
     
     // QNAs.
     "faq": ["question", "answer"],
