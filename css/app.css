@@ -18,7 +18,8 @@
 }
 
 #app-page,
-#app-exercises {
+#app-exercises,
+#app-ai {
     outline-style: solid;
     outline-width: 1pt;
     outline-color: var(--accent-color);
@@ -36,13 +37,15 @@
 }
 
 #app-page::-webkit-scrollbar,
-#app-exercises::-webkit-scrollbar {
+#app-exercises::-webkit-scrollbar,
+#app-ai::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
 
 #app-page > div,
-#app-exercises > div {
+#app-exercises > div,
+#app-ai > div {
     align-items: center;
     box-sizing: border-box;
     display: flex;
@@ -52,12 +55,15 @@
 #app-page > h1,
 #app-page > hr,
 #app-exercises > h1,
-#app-exercises > hr {
+#app-exercises > hr,
+#app-ai > h1,
+#app-ai > hr {
     margin: 0.5rem 0rem;
 }
 
 #app-page button,
-#app-exercises button {
+#app-exercises button,
+#app-ai button {
     max-width: 8rem;
 }
 

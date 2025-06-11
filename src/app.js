@@ -2,6 +2,19 @@ const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
 let __words__ = [null, null, null];
+document.getElementById("app-ai-document-id").value = "a105a9a5-5109-44cc-81a6-4b62a30a6ee0"; // TODO: Remove after debugging.
+
+// Sleep function.
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Count how many tokens are in a string.
+function countTokens(content) {
+    const { encode, decode } = GPTTokenizer_cl100k_base;
+    const tokens = encode(JSON.stringify(content));
+    return tokens.length;
+}
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -21,11 +34,20 @@ function displayUploadError(message) {
     return null;
 }
 
-// Display draft fecth error to user.
+// Display draft fetch error to user.
 function displayDraftFetchError(message) {
     document.getElementById("app-en-result-fetch").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display = "none";
     let errorMessage = document.getElementById("app-fetch-error");
+    errorMessage.textContent = message;
+    errorMessage.style.display = "";
+    return null;
+}
+
+// Display ai action error to user.
+function displayAIActionError(message) {
+    document.getElementById("app-ai-rewrite").getElementsByClassName("small-loader")[0].style.display = "none";
+    let errorMessage = document.getElementById("app-ai-error");
     errorMessage.textContent = message;
     errorMessage.style.display = "";
     return null;
@@ -181,6 +203,39 @@ async function fetchDrafts(language = "en") {
     })
 }
 
+// Fetch Sanity document for AI action.
+async function fetchDocument() {
+    const [project, dataset, token] = __words__;
+
+    const cont_ids = document.getElementById("app-ai-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
+    if (cont_ids.length == 0) return displayAIActionError("Please provide a valid Sanity Content ID.");
+    if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
+
+    const output = document.getElementById("app-ai-results");
+    output.value = "";
+
+    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${cont_ids[0]}"]`)
+    }`;
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    const response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    const data = await response.json();
+    if (data["result"].length <= 0) displayAIActionError(`Could NOT find Sanity content.`);
+
+    output.value += `${data["result"][0]["title"]}\n\n`;
+    output.value += `Abstract (${countTokens(data["result"][0]["abstract"])} tokens)\n\n`;
+    for (let part of data["result"][0]["parts"]) {
+        output.value += `${part["title"]} (${countTokens(part["subparts"])} tokens)\n`;
+        for (let subpart of part["subparts"]) {
+            output.value += `    -   ${subpart["title"]} (${countTokens(subpart["content"])} tokens)\n`;
+        }
+        output.value += `\n`;
+    }
+}
+
 // Set tabs to only-one active.
 const appTabs = document.getElementById("app-tabs").querySelectorAll(".app-tab");
 appTabs.forEach(tab => {
@@ -189,6 +244,7 @@ appTabs.forEach(tab => {
         this.classList.add("active");
         document.getElementById("app-page").style.display = "none";
         document.getElementById("app-exercises").style.display = "none";
+        document.getElementById("app-ai").style.display = "none";
         if (this.id == "tab-translation-files") {
             document.getElementById("app-page").style.display = "";
             document.getElementById("download-error").style.display = "none";
@@ -196,6 +252,9 @@ appTabs.forEach(tab => {
         } else if (this.id == "tab-exercise-revision") {
             document.getElementById("app-exercises").style.display = "";
             document.getElementById("app-fetch-error").style.display = "none";
+        } else if (this.id == "tab-ai-tools") {
+            document.getElementById("app-ai").style.display = "";
+            document.getElementById("app-ai-error").style.display = "none";
         }
     });
 });
@@ -235,6 +294,11 @@ document.getElementById("app-document-id").addEventListener("input", function(ev
 // Listen for upload file input field edits.
 document.getElementById("app-translation-document").addEventListener("change", function(event) {
     document.getElementById("upload-error").style.display = "none";
+});
+
+// Listen for ai input field edits.
+document.getElementById("app-ai-document-id").addEventListener("input", function(event) {
+    document.getElementById("app-ai-error").style.display = "none";
 });
 
 // Download Translation file.
@@ -298,6 +362,19 @@ document.getElementById("app-fr-result-fetch").addEventListener("click", async f
     if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     await fetchDrafts("fr");
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Fetch request document for AI action.
+document.getElementById("app-ai-rewrite").addEventListener("click", async function(event) {
+    if (document.getElementById("app-ai-rewrite").getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-ai-error").style.display = "none";
+    let [project, dataset, token] = __words__;
+    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+
+    await fetchDocument("en");
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });

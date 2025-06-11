@@ -60,7 +60,8 @@ button[data-inverted="true"]:hover {
     background-color: var(--button-inverted-hover-color);
 }
 
-input {
+input,
+textarea {
     line-height: 1.465;
     box-shadow: none;
     -webkit-font-smoothing: inherit;
@@ -79,15 +80,23 @@ input {
     height: 2.188rem;
 }
 
-input:hover {
+textarea {
+    height: 100%;
+    resize: none;
+}
+
+input:hover,
+textarea:hover {
     border-color: var(--input-hover-color);
 }
 
-input:focus {
+input:focus,
+textarea:focus {
     border-color: var(--input-focus-color);
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
     color: var(--input-placeholder-color);
     opacity: 1;
 }
