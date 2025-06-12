@@ -1,19 +1,12 @@
 const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
-let __words__ = [null, null, null];
+let __words__ = [null, null, null, null];
 document.getElementById("app-ai-document-id").value = "a105a9a5-5109-44cc-81a6-4b62a30a6ee0"; // TODO: Remove after debugging.
 
 // Sleep function.
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Count how many tokens are in a string.
-function countTokens(content) {
-    const { encode, decode } = GPTTokenizer_cl100k_base;
-    const tokens = encode(JSON.stringify(content));
-    return tokens.length;
 }
 
 // Display download error to user.
@@ -147,7 +140,7 @@ async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
     if (force_ids && cont_ids.length != 1) return displayUploadError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually when uploading Translation Files or Contents.");
 
     let url, request = null;
-    let [project, dataset, token] = __words__;
+    let [project, dataset, token, secret] = __words__;
 
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
     request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}`}};
@@ -179,7 +172,7 @@ async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
 
 // Fetch Draft Exerices.
 async function fetchDrafts(language = "en") {
-    const [project, dataset, token] = __words__;
+    const [project, dataset, token, secret] = __words__;
     const textField = document.getElementById("app-result-ids");
     textField.value = "";
 
@@ -205,7 +198,7 @@ async function fetchDrafts(language = "en") {
 
 // Fetch Sanity document for AI action.
 async function fetchDocument() {
-    const [project, dataset, token] = __words__;
+    const [project, dataset, token, secret] = __words__;
 
     const cont_ids = document.getElementById("app-ai-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     if (cont_ids.length == 0) return displayAIActionError("Please provide a valid Sanity Content ID.");
@@ -225,12 +218,18 @@ async function fetchDocument() {
     const data = await response.json();
     if (data["result"].length <= 0) displayAIActionError(`Could NOT find Sanity content.`);
 
-    output.value += `${data["result"][0]["title"]}\n\n`;
-    output.value += `Abstract (${countTokens(data["result"][0]["abstract"])} tokens)\n\n`;
-    for (let part of data["result"][0]["parts"]) {
+    const sanityContent = data["result"][0];
+
+    output.value += `${sanityContent["title"]}\n\n`;
+    output.value += `Abstract (${countTokens(sanityContent["abstract"])} tokens)\n\n`;
+    for (let part of sanityContent["parts"]) {
         output.value += `${part["title"]} (${countTokens(part["subparts"])} tokens)\n`;
-        for (let subpart of part["subparts"]) {
-            output.value += `    -   ${subpart["title"]} (${countTokens(subpart["content"])} tokens)\n`;
+        for (let i = 0; i < part["subparts"].length; i++) {
+            const previous = part["subparts"][i - 1] || null;
+            const current = part["subparts"][i];
+            const next = part["subparts"][i + 1] || null;
+            output.value += `    -   ${current["title"]} (${countTokens(current["content"])} tokens)\n`;
+            console.log(formatPrompt(previous, current, next));
         }
         output.value += `\n`;
     }
@@ -306,8 +305,8 @@ document.getElementById("app-document-download").addEventListener("click", funct
     if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("download-error").style.display = "none";
-    let [project, dataset, token] = __words__;
-    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, secret] = __words__;
+    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     const cont_ids = document.getElementById("app-document-ids").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     const single_file = document.getElementById("app-single-file").checked;
@@ -329,8 +328,8 @@ document.getElementById("app-document-upload").addEventListener("click", functio
     if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("upload-error").style.display = "none";
-    let [project, dataset, token] = __words__;
-    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, secret] = __words__;
+    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     const cont_ids = document.getElementById("app-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     const force_ids = document.getElementById("app-force-id").checked;
@@ -344,8 +343,8 @@ document.getElementById("app-en-result-fetch").addEventListener("click", async f
     if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-fetch-error").style.display = "none";
-    let [project, dataset, token] = __words__;
-    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, secret] = __words__;
+    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     await fetchDrafts("en");
 
@@ -358,8 +357,8 @@ document.getElementById("app-fr-result-fetch").addEventListener("click", async f
     if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-fetch-error").style.display = "none";
-    let [project, dataset, token] = __words__;
-    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, secret] = __words__;
+    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     await fetchDrafts("fr");
 
@@ -371,8 +370,8 @@ document.getElementById("app-ai-rewrite").addEventListener("click", async functi
     if (document.getElementById("app-ai-rewrite").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-ai-error").style.display = "none";
-    let [project, dataset, token] = __words__;
-    if (!project || !dataset || !token ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, secret] = __words__;
+    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
 
     await fetchDocument("en");
 

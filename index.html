@@ -38,7 +38,7 @@
                 <hr class="divider">
                 <h1 id="auth-message">Enter your Sanity API credentials</h1>
                 <input type="username" id="auth-project" placeholder="Project ID & Dataset">
-                <input type="password" id="auth-token" placeholder="API Key">
+                <input type="password" id="auth-token" placeholder="API Key & Automation API Key">
                 <button id="form-auth-button" data-inverted="true">Authenticate</button>
                 <p id="auth-error" style="display: none;">This is an example error, please do something! Please do something very fast</p>
             </form>
@@ -118,8 +118,6 @@
 
                 <input id="app-result-ids" placeholder="Sanity Draft IDs">
             </div>
-
-
             <div id="app-ai" style="display: none;">
                 <h1 id="app-page-download">Rewrite Module</h1>
                 <hr class="divider">
@@ -131,9 +129,6 @@
 
                 <textarea id="app-ai-results" placeholder="Output" cols="40" rows="5"></textarea>
             </div>
-
-
-            
         </div>
 
         <!-- Scripts -->
@@ -141,6 +136,7 @@
         <script src="src/authentication.js"></script>
         <script src="src/paths.js"></script>
         <script src="src/conversion.js"></script>
+        <script src="src/ai.js"></script>
         <script src="src/app.js"></script>
     </body>
 </html>

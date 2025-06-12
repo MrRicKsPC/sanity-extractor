@@ -13,7 +13,7 @@ function displayAuthError(message) {
 }
 
 // Test the validity of a given Sanity API Key.
-async function testAPIToken(project, dataset, token) {
+async function testAPIToken(project, dataset, token, secret) {
     const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=*[false]`;
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     if (!url || !request) return displayAuthError("Please provide valid Sanity API credentials.");
@@ -26,7 +26,7 @@ async function testAPIToken(project, dataset, token) {
         return displayAuthError("Please provide valid Sanity API credentials.");
     }
 
-    __words__ = [project, dataset, token];
+    __words__ = [project, dataset, token, secret];
 
     document.getElementById("auth-project").value = "";
     document.getElementById("auth-token").value = "";
@@ -44,14 +44,18 @@ document.getElementById("auth-form").addEventListener("submit", function(event) 
     let project = document.getElementById("auth-project").value.split("&").map(item => item.trim());
     if (project.length != 2) return displayAuthError("Please provide a valid Sanity Project ID & Dataset.");
 
-    let token = document.getElementById("auth-token").value.trim();
+    let credentials = document.getElementById("auth-token").value.split("&").map(item => item.trim());
+    if (credentials.length != 2) return displayAuthError("Please provide a valid Sanity API Key & Sanity Automations API Key.");
+
+    [token, secret] = credentials;
     if (!token.length) return displayAuthError("Please provide a valid Sanity API Key.");
+    if (!secret.length) return displayAuthError("Please provide a valid Sanity Automations API Key.");
 
     [project, dataset] = project;
     if (!project.length) return displayAuthError("Please provide a valid Sanity Project ID.");
     if (!dataset.length) return displayAuthError("Please provide a valid Sanity Dataset.");
 
-    testAPIToken(project, dataset, token);
+    testAPIToken(project, dataset, token, secret);
 });
 
 // Display authentication form to user.
