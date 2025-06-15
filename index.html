@@ -37,7 +37,7 @@
                 </svg>
                 <hr class="divider">
                 <h1 id="auth-message">Enter your Sanity API credentials</h1>
-                <input type="username" id="auth-project" placeholder="Project ID & Dataset">
+                <input type="username" id="auth-project" placeholder="Project ID & Dataset & Sanity Automations API">
                 <input type="password" id="auth-token" placeholder="API Key & Automation API Key">
                 <button id="form-auth-button" data-inverted="true">Authenticate</button>
                 <p id="auth-error" style="display: none;">This is an example error, please do something! Please do something very fast</p>
@@ -88,7 +88,7 @@
                     <p class="checkbox-label">Download in a single Translation File.</p>
                 </div>
                 <div>
-                    <button id="app-document-download" data-inverted="true">Download<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
+                    <button id="app-document-download" data-inverted="true" short="true">Download<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <p id="download-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
                 </div>
                 <div class="spacer"></div>
@@ -102,7 +102,7 @@
                     <p class="checkbox-label">Specify a Sanity Content ID manually (be sure to provide the correct ID).</p>
                 </div>
                 <div>
-                    <button id="app-document-upload" data-inverted="true">Upload<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
+                    <button id="app-document-upload" data-inverted="true" short="true">Upload<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <p id="upload-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
                 </div>
             </div>
@@ -110,9 +110,9 @@
                 <h1 id="app-page-download">Fetch Draft Exercise IDs</h1>
                 <hr class="divider">
                 <div>
-                    <button id="app-en-result-fetch" data-inverted="true">EN Drafts<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
+                    <button id="app-en-result-fetch" data-inverted="true" short="true">EN Drafts<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <div class="spacerH"></div>
-                    <button id="app-fr-result-fetch" data-inverted="true">FR Drafts<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
+                    <button id="app-fr-result-fetch" data-inverted="true" short="true">FR Drafts<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <p id="app-fetch-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
                 </div>
 
@@ -123,11 +123,10 @@
                 <hr class="divider">
                 <input id="app-ai-document-id" placeholder="Sanity Module ID">
                 <div>
-                    <button id="app-ai-rewrite" data-inverted="true">Tokenize<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
+                    <button id="app-ai-rewrite" data-inverted="true" short="true">Load Module<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <p id="app-ai-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
                 </div>
-
-                <textarea id="app-ai-results" placeholder="Output" cols="40" rows="5"></textarea>
+                <hr class="divider">
             </div>
         </div>
 

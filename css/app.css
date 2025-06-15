@@ -63,7 +63,7 @@
 
 #app-page button,
 #app-exercises button,
-#app-ai button {
+#app-ai button[short="true"] {
     max-width: 8rem;
 }
 
@@ -204,4 +204,9 @@
 .small-loader[data-inverted="true"]::after,
 .small-loader[data-inverted="true"]::before {
     background: var(--background-color);
+}
+
+.app-ai-subpart {
+    max-width: 80%;
+    width: 80%;
 }

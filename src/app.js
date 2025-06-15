@@ -1,13 +1,8 @@
 const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
-let __words__ = [null, null, null, null];
-document.getElementById("app-ai-document-id").value = "a105a9a5-5109-44cc-81a6-4b62a30a6ee0"; // TODO: Remove after debugging.
-
-// Sleep function.
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+let __words__ = [null, null, null, null, null];
+document.getElementById("app-ai-document-id").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5"; // TODO: Remove after debugging.
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -140,7 +135,7 @@ async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
     if (force_ids && cont_ids.length != 1) return displayUploadError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually when uploading Translation Files or Contents.");
 
     let url, request = null;
-    let [project, dataset, token, secret] = __words__;
+    let [project, dataset, token, automation, secret] = __words__;
 
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
     request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}`}};
@@ -172,7 +167,7 @@ async function uploadTranslationFiles(cont_ids, force_ids, cont_files) {
 
 // Fetch Draft Exerices.
 async function fetchDrafts(language = "en") {
-    const [project, dataset, token, secret] = __words__;
+    const [project, dataset, token, automation, secret] = __words__;
     const textField = document.getElementById("app-result-ids");
     textField.value = "";
 
@@ -196,43 +191,136 @@ async function fetchDrafts(language = "en") {
     })
 }
 
-// Fetch Sanity document for AI action.
-async function fetchDocument() {
-    const [project, dataset, token, secret] = __words__;
+// Delete all subparts.
+function deleteSubParts() {
+    const elements = document.querySelectorAll('.app-ai-subparts');
+    elements.forEach(element => element.remove());
+}
 
+// Push an new subpart.
+function pushSubPart(name, id, tokens, callback) {
+    const parent = document.getElementById("app-ai");
+    
+    const divElement = document.createElement("div");
+    divElement.setAttribute("class", "app-ai-subparts");
+
+    const buttonElement = document.createElement("button");
+    buttonElement.setAttribute("id", id);
+    buttonElement.textContent = `${name} (${tokens} tokens)`
+
+    const spanElement = document.createElement("span");
+    spanElement.setAttribute("class", "small-loader");
+    spanElement.setAttribute("style", "display: none;");
+    buttonElement.appendChild(spanElement);
+
+    divElement.appendChild(buttonElement);
+
+    const paragraphElement = document.createElement("button");
+    paragraphElement.setAttribute("id", `app-ai-error-${id}`);
+    paragraphElement.setAttribute("class", "error-label");
+    paragraphElement.setAttribute("style", "display: none;");
+    paragraphElement.textContent = "Here is an example of error message that the user may encounter during navigation.";
+    divElement.appendChild(paragraphElement);
+
+    parent.appendChild(divElement);
+}
+
+// Push an new subpart separator.
+function pushSubPartSeparator(name, id, tokens, callback) {
+    const parent = document.getElementById("app-ai");
+    
+    const hrElement = document.createElement("div");
+    hrElement.setAttribute("class", "divider app-ai-subparts");
+    parent.appendChild(hrElement);
+}
+
+// Push an new subpart separator.
+function pushPartTitle(name) {
+    const parent = document.getElementById("app-ai");
+    
+    const textElement = document.createElement("h4");
+    textElement.setAttribute("class", "app-ai-subparts");
+    textElement.textContent = name;
+    parent.appendChild(textElement);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Fetch Sanity document for AI action.
+async function loadModuleForAI(action) {
+    const [project, dataset, token, automation, secret] = __words__;
+
+    // Fetch content from Sanity API.
     const cont_ids = document.getElementById("app-ai-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     if (cont_ids.length == 0) return displayAIActionError("Please provide a valid Sanity Content ID.");
     if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
 
-    const output = document.getElementById("app-ai-results");
-    output.value = "";
-
-    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+    let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
         encodeURIComponent(`*[_id=="${cont_ids[0]}"]`)
     }`;
-    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    let request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
 
-    const response = await fetch(url, request);
+    let response = await fetch(url, request);
     if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
-    const data = await response.json();
+    let data = await response.json();
     if (data["result"].length <= 0) displayAIActionError(`Could NOT find Sanity content.`);
 
     const sanityContent = data["result"][0];
 
-    output.value += `${sanityContent["title"]}\n\n`;
-    output.value += `Abstract (${countTokens(sanityContent["abstract"])} tokens)\n\n`;
-    for (let part of sanityContent["parts"]) {
-        output.value += `${part["title"]} (${countTokens(part["subparts"])} tokens)\n`;
-        for (let i = 0; i < part["subparts"].length; i++) {
-            const previous = part["subparts"][i - 1] || null;
-            const current = part["subparts"][i];
-            const next = part["subparts"][i + 1] || null;
-            output.value += `    -   ${current["title"]} (${countTokens(current["content"])} tokens)\n`;
-            console.log(formatPrompt(previous, current, next));
+    // Edit Sanity content using Sanity Automations API (this part only works for modules for now).
+    if (sanityContent["_type"] !== "ebpModule") return;
+    deleteSubParts();
+    for (let i = 0; i < sanityContent["parts"].length; i++) {
+        const part = sanityContent["parts"][i];
+        pushPartTitle(part["title"]);
+        for (let j = 0; j < part["subparts"].length; j++) {
+            const subpart = part["subparts"][j];
+            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), null);
         }
-        output.value += `\n`;
+        pushSubPartSeparator();
     }
+
+    // const testRewrite = await AI_Rewrite(sanityContent["parts"][0]["subparts"][0]);
+    // console.log(testRewrite);
+    // sanityContent["parts"][0]["subparts"][0] = testRewrite;
+
+    // Put copy of content back to Sanity API.
+    // const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${sanityContent["_id"]};drafts.${sanityContent["_id"]}-ai`;
+    // sanityContent["_id"] = `drafts.${sanityContent["_id"]}-ai`;
+    // sanityContent["title"] = `[AI Copy] - ${sanityContent["title"]}`;
+    // delete sanityContent["_rev"];
+    // delete sanityContent["_createdAt"];
+    // delete sanityContent["_updatedAt"];
+    
+    // url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    // request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    // request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": sanityContent}]});
+
+    // response = await fetch(url, request);
+    // if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    // data = await response.json();
+    // console.log("[SUCCESS] - To compare both versions, visit", compareLink);
+    // output.value += `[SUCCESS]\nTo compare both versions, visit ${compareLink}`;
 }
 
 // Set tabs to only-one active.
@@ -305,8 +393,8 @@ document.getElementById("app-document-download").addEventListener("click", funct
     if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("download-error").style.display = "none";
-    let [project, dataset, token, secret] = __words__;
-    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
     const cont_ids = document.getElementById("app-document-ids").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     const single_file = document.getElementById("app-single-file").checked;
@@ -328,8 +416,8 @@ document.getElementById("app-document-upload").addEventListener("click", functio
     if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("upload-error").style.display = "none";
-    let [project, dataset, token, secret] = __words__;
-    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
     const cont_ids = document.getElementById("app-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
     const force_ids = document.getElementById("app-force-id").checked;
@@ -343,8 +431,8 @@ document.getElementById("app-en-result-fetch").addEventListener("click", async f
     if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-fetch-error").style.display = "none";
-    let [project, dataset, token, secret] = __words__;
-    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
     await fetchDrafts("en");
 
@@ -357,8 +445,8 @@ document.getElementById("app-fr-result-fetch").addEventListener("click", async f
     if (document.getElementById("app-fr-result-fetch").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-fetch-error").style.display = "none";
-    let [project, dataset, token, secret] = __words__;
-    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
     await fetchDrafts("fr");
 
@@ -370,10 +458,10 @@ document.getElementById("app-ai-rewrite").addEventListener("click", async functi
     if (document.getElementById("app-ai-rewrite").getElementsByClassName("small-loader")[0].style.display == "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-ai-error").style.display = "none";
-    let [project, dataset, token, secret] = __words__;
-    if (!project || !dataset || !token || !secret ) return displayAuthError("Please provide valid Sanity API credentials.");
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    await fetchDocument("en");
+    await loadModuleForAI("rewrite");
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
