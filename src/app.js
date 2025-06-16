@@ -310,7 +310,7 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
         dstModule = JSON.parse(JSON.stringify(srcModule));
 
     // Rewrite target subsection.
-    const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -327,9 +327,25 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     response = await fetch(url, request);
     if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
-    data = await response.json();
-    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};drafts.${moduleId}-ai`;
-    console.log("[SUCCESS] - To compare both versions, visit", compareLink);
+    console.log("[SUCCESS] - Preview document generated on Sanity.");
+}
+
+async function existsOnSanity(id) {
+    const [project, dataset, token, automation, secret] = __words__;
+
+    // Fetch content from Sanity API.
+    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${id}"]`)
+    }`;
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    const response = await fetch(url, request);
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    if (data["result"].length <= 0) return false;
+
+    return true;
 }
 
 
@@ -351,8 +367,85 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
 
 
 
+async function compareOriginalWithAIContent() {
+    const [project, dataset, token, automation, secret] = __words__;
+
+    // Parse module ID from field.
+    const cont_ids = document.getElementById("app-ai-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
+    if (cont_ids.length == 0) return displayAIActionError("Please provide a valid Sanity Content ID.");
+    if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
+
+    const moduleId = cont_ids[0];
+
+    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};drafts.${moduleId}-ai`;
+    window.open(compareLink, "_blank");
+
+    console.log(compareLink);
+}
+
+async function applyAIContentAndOverwrite() {
+    const [project, dataset, token, automation, secret] = __words__;
+
+    // Confirm user intentions.
+    if (!confirm("Are you sure you want to overwrite the original Sanity document with the AI-generated content?\n\nThis action is NOT reversible.")) return;
+    if (!confirm("If you proceed, all content in the original document will be overwritten and may be LOST FOREVER, are you really sure you want to proceed?")) return;
+
+    // Parse module ID from field.
+    const cont_ids = document.getElementById("app-ai-document-id").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
+    if (cont_ids.length == 0) return displayAIActionError("Please provide a valid Sanity Content ID.");
+    if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
+
+    const moduleId = cont_ids[0];
+    
+    // Fetch source content from Sanity API.
+    let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${moduleId}"]`)
+    }`;
+    let request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    let response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    let data = await response.json();
+    if (data["result"].length <= 0) return displayAIActionError(`Could NOT find Sanity content.`);
+
+    let srcModule = data["result"][0];
+    if (srcModule["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
+
+    // Fetch target content from Sanity API.    
+    url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${`drafts.${moduleId}-ai`}"]`)
+    }`;
+    request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    data = await response.json();
+    if (data["result"].length <= 0) return displayAIActionError(`Could NOT find AI-generated Sanity content.`);
+
+    let trgModule = data["result"][0];
+    if (trgModule["_type"] !== "ebpModule") return displayAIActionError(`AI-generated Sanity content is NOT a module.`);
+
+    // TODO: Patch source content with target content.
+    console.log("SOURCE=", srcModule["title"]);
+    console.log("TARGET=", trgModule["title"]);
+
+    // Delete AI-generated document.
+    url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    request["body"] = JSON.stringify({ "mutations": [{ "delete": { "id": `drafts.${moduleId}-ai` }}]});
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    document.getElementById("app-ai-compare").style.display = "none";
+    document.getElementById("app-ai-apply").style.display = "none";
+    console.log("[SUCCESS] - Your original Sanity document was replaced with the content of the AI-generated content.");
+}
+
 // Fetch Sanity document for AI action.
-async function loadModuleForAI(action) {
+async function loadModuleForAI() {
     const [project, dataset, token, automation, secret] = __words__;
 
     // Fetch content from Sanity API.
@@ -374,6 +467,8 @@ async function loadModuleForAI(action) {
     const sanityContent = data["result"][0];
 
     // Add subsection AI action buttons.
+    document.getElementById("app-ai-compare").style.display = "none";
+    document.getElementById("app-ai-apply").style.display = "none";
     deleteSubParts();
     pushModuleTitle(sanityContent["title"]);
     pushSubPartSeparator();
@@ -385,9 +480,15 @@ async function loadModuleForAI(action) {
             const subpart = part["subparts"][j];
             pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), async function() {
                 await rewriteModuleSubpart(sanityContent["_id"], i, j);
+                document.getElementById("app-ai-compare").style.display = "";
+                document.getElementById("app-ai-apply").style.display = "";
             });
         }
         pushSubPartSeparator();
+    }
+    if (await existsOnSanity(`drafts.${sanityContent["_id"]}-ai`)) {
+        document.getElementById("app-ai-compare").style.display = "";
+        document.getElementById("app-ai-apply").style.display = "";
     }
 }
 
@@ -529,7 +630,33 @@ document.getElementById("app-ai-rewrite").addEventListener("click", async functi
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    await loadModuleForAI("rewrite");
+    await loadModuleForAI();
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Compare source document with AI-generated document.
+document.getElementById("app-ai-compare").addEventListener("click", async function(event) {
+    if (document.getElementById("app-ai-compare").getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-ai-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    await compareOriginalWithAIContent();
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Patch source document using AI-generated content.
+document.getElementById("app-ai-apply").addEventListener("click", async function(event) {
+    if (document.getElementById("app-ai-apply").getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-ai-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    await applyAIContentAndOverwrite();
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
