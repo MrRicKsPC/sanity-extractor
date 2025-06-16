@@ -2,7 +2,7 @@ const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
 let __words__ = [null, null, null, null, null];
-document.getElementById("app-ai-document-id").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5"; // TODO: Remove after debugging.
+// document.getElementById("app-ai-document-id").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5"; // TODO: Remove after debugging.
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -223,6 +223,21 @@ function pushSubPart(name, id, tokens, callback) {
     divElement.appendChild(paragraphElement);
 
     parent.appendChild(divElement);
+
+    buttonElement.addEventListener("click", async function() {
+        const elements = document.querySelectorAll('div.app-ai-subparts:not(.divider)');
+        for (let element of elements) {
+            if (element.getElementsByClassName("small-loader")[0].style.display === "") {
+                return;
+            }
+        }
+        this.getElementsByClassName("small-loader")[0].style.display = "";
+        document.getElementById("app-ai-error").style.display = "none";
+        
+        await callback()
+
+        this.getElementsByClassName("small-loader")[0].style.display = "none";
+    });
 }
 
 // Push an new subpart separator.
@@ -244,6 +259,68 @@ function pushPartTitle(name) {
     parent.appendChild(textElement);
 }
 
+// Rewrite a specific module subpart.
+async function rewriteModuleSubpart(moduleId, part, subpart) {
+    const [project, dataset, token, automation, secret] = __words__;
+
+    // Fetch source content from Sanity API.
+    let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${moduleId}"]`)
+    }`;
+    let request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    let response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    let data = await response.json();
+    if (data["result"].length <= 0) return displayAIActionError(`Could NOT find Sanity content.`);
+
+    let srcModule = data["result"][0];
+    if (srcModule["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
+
+    // Fetch destination content from Sanity API.
+    url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${`drafts.${moduleId}-ai`}"]`)
+    }`;
+    request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    let dstModule = null;
+
+    data = await response.json();
+    if (data["result"].length <= 0) {
+        dstModule = JSON.parse(JSON.stringify(srcModule));
+    } else {
+        dstModule = data["result"][0];
+    }
+
+    if (dstModule["_type"] !== "ebpModule")
+        dstModule = JSON.parse(JSON.stringify(srcModule));
+
+    // Rewrite target subsection.
+    const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
+
+    // Update copy of content back to Sanity API.
+    dstModule["_id"] = `drafts.${moduleId}-ai`;
+    dstModule["title"] = `[AI Copy] - ${srcModule["title"]}`;
+    delete dstModule["_rev"];
+    delete dstModule["_createdAt"];
+    delete dstModule["_updatedAt"];
+    
+    url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": dstModule}]});
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    data = await response.json();
+    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};drafts.${moduleId}-ai`;
+    console.log("[SUCCESS] - To compare both versions, visit", compareLink);
+}
 
 
 
@@ -286,41 +363,20 @@ async function loadModuleForAI(action) {
 
     const sanityContent = data["result"][0];
 
-    // Edit Sanity content using Sanity Automations API (this part only works for modules for now).
-    if (sanityContent["_type"] !== "ebpModule") return;
+    // Add subsection AI action buttons.
     deleteSubParts();
+    if (sanityContent["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
     for (let i = 0; i < sanityContent["parts"].length; i++) {
         const part = sanityContent["parts"][i];
         pushPartTitle(part["title"]);
         for (let j = 0; j < part["subparts"].length; j++) {
             const subpart = part["subparts"][j];
-            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), null);
+            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), async function() {
+                await rewriteModuleSubpart(sanityContent["_id"], i, j);
+            });
         }
         pushSubPartSeparator();
     }
-
-    // const testRewrite = await AI_Rewrite(sanityContent["parts"][0]["subparts"][0]);
-    // console.log(testRewrite);
-    // sanityContent["parts"][0]["subparts"][0] = testRewrite;
-
-    // Put copy of content back to Sanity API.
-    // const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${sanityContent["_id"]};drafts.${sanityContent["_id"]}-ai`;
-    // sanityContent["_id"] = `drafts.${sanityContent["_id"]}-ai`;
-    // sanityContent["title"] = `[AI Copy] - ${sanityContent["title"]}`;
-    // delete sanityContent["_rev"];
-    // delete sanityContent["_createdAt"];
-    // delete sanityContent["_updatedAt"];
-    
-    // url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
-    // request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
-    // request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": sanityContent}]});
-
-    // response = await fetch(url, request);
-    // if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
-
-    // data = await response.json();
-    // console.log("[SUCCESS] - To compare both versions, visit", compareLink);
-    // output.value += `[SUCCESS]\nTo compare both versions, visit ${compareLink}`;
 }
 
 // Set tabs to only-one active.
