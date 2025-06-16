@@ -249,11 +249,21 @@ function pushSubPartSeparator(name, id, tokens, callback) {
     parent.appendChild(hrElement);
 }
 
-// Push an new subpart separator.
+// Push an new subpart title.
 function pushPartTitle(name) {
     const parent = document.getElementById("app-ai");
     
     const textElement = document.createElement("h4");
+    textElement.setAttribute("class", "app-ai-subparts");
+    textElement.textContent = name;
+    parent.appendChild(textElement);
+}
+
+// Push module title.
+function pushModuleTitle(name) {
+    const parent = document.getElementById("app-ai");
+    
+    const textElement = document.createElement("h2");
     textElement.setAttribute("class", "app-ai-subparts");
     textElement.textContent = name;
     parent.appendChild(textElement);
@@ -365,6 +375,8 @@ async function loadModuleForAI(action) {
 
     // Add subsection AI action buttons.
     deleteSubParts();
+    pushModuleTitle(sanityContent["title"]);
+    pushSubPartSeparator();
     if (sanityContent["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
     for (let i = 0; i < sanityContent["parts"].length; i++) {
         const part = sanityContent["parts"][i];

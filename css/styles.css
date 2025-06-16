@@ -157,6 +157,6 @@ input[type="file"]::-webkit-input-placeholder {
     color: var(--button-font-color);
 }
 
-h4 {
+h2, h4 {
     margin: 0 0 0 0;
 }
