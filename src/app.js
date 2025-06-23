@@ -2,7 +2,12 @@ const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
 let __words__ = [null, null, null, null, null];
+
+let domContent = null;
+let domContentPending = false;
+
 // document.getElementById("app-ai-document-id").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5"; // TODO: Remove after debugging.
+document.getElementById("app-search-replace-ids").value = "28efe934-0344-4119-bd49-ebee0f0e617b, 4292126e-8af0-4c9d-8477-95be545a1ef1, 930025ad-0b9b-4b4b-804d-8c39e6d02f85-en, drafts.f521e8d4-36f3-44d8-bd48-4696432396c7"; // TODO: Remove after debugging.
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -35,7 +40,20 @@ function displayDraftFetchError(message) {
 // Display ai action error to user.
 function displayAIActionError(message) {
     document.getElementById("app-ai-rewrite").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-ai-compare").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-ai-apply").getElementsByClassName("small-loader")[0].style.display = "none";
     let errorMessage = document.getElementById("app-ai-error");
+    errorMessage.textContent = message;
+    errorMessage.style.display = "";
+    return null;
+}
+
+// Display S&R error to user.
+function displaySearchReplaceError(message) {
+    document.getElementById("app-search-replace-load-en").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-load-fr").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-apply").getElementsByClassName("small-loader")[0].style.display = "none";
+    let errorMessage = document.getElementById("app-search-replace-error");
     errorMessage.textContent = message;
     errorMessage.style.display = "";
     return null;
@@ -272,6 +290,7 @@ function pushModuleTitle(name) {
 // Rewrite a specific module subpart.
 async function rewriteModuleSubpart(moduleId, part, subpart) {
     const [project, dataset, token, automation, secret] = __words__;
+    const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
 
     // Fetch source content from Sanity API.
     let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
@@ -290,7 +309,7 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
 
     // Fetch destination content from Sanity API.
     url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
-        encodeURIComponent(`*[_id=="${`drafts.${moduleId}-ai`}"]`)
+        encodeURIComponent(`*[_id=="${aiModuleId}"]`)
     }`;
     request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
 
@@ -311,10 +330,11 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
 
     // Rewrite target subsection.
     const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    // const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
-    dstModule["_id"] = `drafts.${moduleId}-ai`;
+    dstModule["_id"] = aiModuleId;
     dstModule["title"] = `[AI Copy] - ${srcModule["title"]}`;
     delete dstModule["_rev"];
     delete dstModule["_createdAt"];
@@ -348,25 +368,6 @@ async function existsOnSanity(id) {
     return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 async function compareOriginalWithAIContent() {
     const [project, dataset, token, automation, secret] = __words__;
 
@@ -376,8 +377,9 @@ async function compareOriginalWithAIContent() {
     if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
 
     const moduleId = cont_ids[0];
+    const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
 
-    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};drafts.${moduleId}-ai`;
+    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};${aiModuleId}`;
     window.open(compareLink, "_blank");
 
     console.log(compareLink);
@@ -396,6 +398,7 @@ async function applyAIContentAndOverwrite() {
     if (cont_ids.length != 1) return displayAIActionError("To prevent any mistakes, you CANNOT specify multiple Sanity Content IDs manually for AI actions.");
 
     const moduleId = cont_ids[0];
+    const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
     
     // Fetch source content from Sanity API.
     let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
@@ -414,7 +417,7 @@ async function applyAIContentAndOverwrite() {
 
     // Fetch target content from Sanity API.    
     url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
-        encodeURIComponent(`*[_id=="${`drafts.${moduleId}-ai`}"]`)
+        encodeURIComponent(`*[_id=="${aiModuleId}"]`)
     }`;
     request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
 
@@ -427,14 +430,22 @@ async function applyAIContentAndOverwrite() {
     let trgModule = data["result"][0];
     if (trgModule["_type"] !== "ebpModule") return displayAIActionError(`AI-generated Sanity content is NOT a module.`);
 
-    // TODO: Patch source content with target content.
-    console.log("SOURCE=", srcModule["title"]);
-    console.log("TARGET=", trgModule["title"]);
+    // Patch source module with target module.
+    srcModule["abstract"] = trgModule["abstract"];
+    srcModule["bibliography"] = trgModule["bibliography"];
+    srcModule["parts"] = trgModule["parts"];
+
+    // url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    // request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    // request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": srcModule}]});
+
+    // response = await fetch(url, request);
+    // if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
     // Delete AI-generated document.
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
     request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
-    request["body"] = JSON.stringify({ "mutations": [{ "delete": { "id": `drafts.${moduleId}-ai` }}]});
+    request["body"] = JSON.stringify({ "mutations": [{ "delete": { "id": aiModuleId }}]});
 
     response = await fetch(url, request);
     if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
@@ -466,6 +477,9 @@ async function loadModuleForAI() {
 
     const sanityContent = data["result"][0];
 
+    const moduleId = sanityContent["_id"];
+    const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
+
     // Add subsection AI action buttons.
     document.getElementById("app-ai-compare").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
@@ -479,17 +493,131 @@ async function loadModuleForAI() {
         for (let j = 0; j < part["subparts"].length; j++) {
             const subpart = part["subparts"][j];
             pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), async function() {
-                await rewriteModuleSubpart(sanityContent["_id"], i, j);
+                await rewriteModuleSubpart(moduleId, i, j);
                 document.getElementById("app-ai-compare").style.display = "";
                 document.getElementById("app-ai-apply").style.display = "";
             });
         }
         pushSubPartSeparator();
     }
-    if (await existsOnSanity(`drafts.${sanityContent["_id"]}-ai`)) {
+    if (await existsOnSanity(aiModuleId)) {
         document.getElementById("app-ai-compare").style.display = "";
         document.getElementById("app-ai-apply").style.display = "";
     }
+}
+
+// Strip unnecessary elements from HTML Translation File.
+function stripTranslationFiles(htmlString) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, "text/html");
+    const domElement = doc.body.firstChild;
+    let result = "";
+    for (const child of domElement.children) {
+        if (child.tagName.toLowerCase() !== "a") {
+            result += `  ${child.outerHTML}\n`;
+        }
+    }
+    domElement.innerHTML = `\n${result}`;
+    return domElement.outerHTML;
+}
+
+// Revert a change made to the translation file.
+function revertChange(element) {
+    const previous = element.getAttribute("title");
+    element.setAttribute("title", element.innerHTML);
+    element.innerHTML = previous;
+    if (element.getAttribute("data-diff") === "yes") {
+        element.setAttribute("data-diff", "no");
+    } else {
+        element.setAttribute("data-diff", "yes");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Naive search and replace function.
+function replaceAllSubstrings(inputString, searchSubstring, replacementSubstring) {
+    const escapedSearch = searchSubstring.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escapedSearch, "g");
+    return inputString.replace(regex, replacementSubstring);
+}
+
+// Download Translation Files for S&R.
+async function loadTranslationFilesForSearchReplace(cont_ids, urls, request) {
+    
+    if (domContentPending && !confirm("Some of your changes have NOT been applied yet.\nAre you sure you want to reload your Sanity documents?")) return;
+    if (domContentPending && !confirm("All pending changes will be lost. Reload documents anyway?")) return;
+    document.getElementById("app-search-replace-apply").style.display = "none";
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    rteditor.innerHTML = "";
+    domContent = null;
+    domContentPending = false;
+
+    try {
+        let results = [];
+        for (let i = 0; i < urls.length; i++) {
+            url = urls[i];
+            
+            const response = await fetch(url, request);
+            if (!response.ok) return displaySearchReplaceError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+            const data = await response.json();
+            results.push(...data["result"]);
+        }
+
+        if (results.length <= 0) return displaySearchReplaceError(`Unable to find any Sanity document with specified parameters.`);
+        
+        let hContent = "";
+        results.forEach(element => {
+            hContent += `${stripTranslationFiles(convertToHTML(element))}\n`;
+        });
+        hContent = applyStyleToHTML(hContent);
+
+        const parser = new DOMParser();
+        domContent = parser.parseFromString(hContent, "text/html").body;
+        domContentPending = false;
+
+        for (const child of domContent.children) {
+            for (const grandchild of child.children) {
+                if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
+                    grandchild.setAttribute("contenteditable", "true");
+                }
+            }
+        }
+
+        rteditor.innerHTML = domContent.innerHTML;
+    } catch (error) {
+        return displaySearchReplaceError("Unable to parse Sanity API response.");
+    }
+    document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "none";
 }
 
 // Set tabs to only-one active.
@@ -501,6 +629,7 @@ appTabs.forEach(tab => {
         document.getElementById("app-page").style.display = "none";
         document.getElementById("app-exercises").style.display = "none";
         document.getElementById("app-ai").style.display = "none";
+        document.getElementById("app-search-replace").style.display = "none";
         if (this.id == "tab-translation-files") {
             document.getElementById("app-page").style.display = "";
             document.getElementById("download-error").style.display = "none";
@@ -511,6 +640,9 @@ appTabs.forEach(tab => {
         } else if (this.id == "tab-ai-tools") {
             document.getElementById("app-ai").style.display = "";
             document.getElementById("app-ai-error").style.display = "none";
+        } else if (this.id == "tab-search-replace") {
+            document.getElementById("app-search-replace").style.display = "";
+            document.getElementById("app-search-replace-error").style.display = "none";
         }
     });
 });
@@ -521,7 +653,7 @@ if (!initialActiveTab) {
     appTabs[0].classList.add("active");
 }
 
-// Toggle manual ID input.
+// Toggle manual ID input for upload.
 document.getElementById("app-force-id").addEventListener("click", function(event) {
     document.getElementById("upload-error").style.display = "none";
     if (event.target.checked) {
@@ -530,6 +662,24 @@ document.getElementById("app-force-id").addEventListener("click", function(event
         document.getElementById("app-document-id").style.display = "none";
     }
 });
+
+// Toggle manual ID input for S&R.
+document.getElementById("app-search-replace-toggle-ids").addEventListener("click", function(event) {
+    document.getElementById("app-search-replace-error").style.display = "none";
+    if (event.target.checked) {
+        document.getElementById("app-search-replace-ids").style.display = "";
+    } else {
+        document.getElementById("app-search-replace-ids").style.display = "none";
+    }
+});
+
+// Hide error message upon S&R type toggling.
+document.getElementById("app-search-replace-toggle-modules").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-exercises").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-clinical-tests").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-masterclasses").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-webinars").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-clinical-practices").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
 
 // Listen for download input field edits.
 document.getElementById("app-document-ids").addEventListener("input", function(event) {
@@ -555,6 +705,11 @@ document.getElementById("app-translation-document").addEventListener("change", f
 // Listen for ai input field edits.
 document.getElementById("app-ai-document-id").addEventListener("input", function(event) {
     document.getElementById("app-ai-error").style.display = "none";
+});
+
+// Listen for S&R input field edits.
+document.getElementById("app-search-replace-ids").addEventListener("input", function(event) {
+    document.getElementById("app-search-replace-error").style.display = "none";
 });
 
 // Download Translation file.
@@ -659,4 +814,224 @@ document.getElementById("app-ai-apply").addEventListener("click", async function
     await applyAIContentAndOverwrite();
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Load specified EN documents as Translation files for S&R.
+document.getElementById("app-search-replace-load-en").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    const cont_ids = document.getElementById("app-search-replace-ids").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
+    const toggle_ids = document.getElementById("app-search-replace-toggle-ids").checked;
+    if (toggle_ids && cont_ids.length == 0) return displaySearchReplaceError("Please provide at least one Sanity Content ID or untick the ID checkbox.");
+
+    const toggle_modules = document.getElementById("app-search-replace-toggle-modules").checked;
+    const toggle_exercises = document.getElementById("app-search-replace-toggle-exercises").checked;
+    const toggle_clinical_tests = document.getElementById("app-search-replace-toggle-clinical-tests").checked;
+    const toggle_masterclasses = document.getElementById("app-search-replace-toggle-masterclasses").checked;
+    const toggle_webinars = document.getElementById("app-search-replace-toggle-webinars").checked;
+    const toggle_clinical_practices = document.getElementById("app-search-replace-toggle-clinical-practices").checked;
+    if (!toggle_ids && !toggle_modules && !toggle_exercises && !toggle_clinical_tests && !toggle_masterclasses && !toggle_webinars && !toggle_clinical_practices)
+        return displaySearchReplaceError("Please provide at least one type of Sanity Content by ticking the checkboxes.");
+
+    const contentTypes = [];
+    if (toggle_modules) contentTypes.push("ebpModule");
+    if (toggle_exercises) contentTypes.push("exercise");
+    if (toggle_clinical_tests) contentTypes.push("clinicalTest");
+    if (toggle_masterclasses) contentTypes.push("masterclass");
+    if (toggle_webinars) contentTypes.push("webinar");
+    if (toggle_clinical_practices) contentTypes.push("clinicalPractice");
+
+    let urls = [];
+    const query = `*[_type in ${JSON.stringify(contentTypes)} && language == "en"]`;
+    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${encodeURIComponent(query)}`;
+    urls.push(url);
+
+    if (toggle_ids) {
+        chunkArray(cont_ids, ID_CHUNKSIZE).forEach(chunk => {
+            const query = `*[_id in ${JSON.stringify(chunk)} && language == "en"]`;
+            const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${encodeURIComponent(query)}`;
+            urls.push(url);
+        });
+    }
+
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Load specified FR documents as Translation files for S&R.
+document.getElementById("app-search-replace-load-fr").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    const cont_ids = document.getElementById("app-search-replace-ids").value.split(ID_SEPARATORS).map(item => item.trim()).filter(str => str !== "");
+    const toggle_ids = document.getElementById("app-search-replace-toggle-ids").checked;
+    if (toggle_ids && cont_ids.length == 0) return displaySearchReplaceError("Please provide at least one Sanity Content ID or untick the ID checkbox.");
+
+    const toggle_modules = document.getElementById("app-search-replace-toggle-modules").checked;
+    const toggle_exercises = document.getElementById("app-search-replace-toggle-exercises").checked;
+    const toggle_clinical_tests = document.getElementById("app-search-replace-toggle-clinical-tests").checked;
+    const toggle_masterclasses = document.getElementById("app-search-replace-toggle-masterclasses").checked;
+    const toggle_webinars = document.getElementById("app-search-replace-toggle-webinars").checked;
+    const toggle_clinical_practices = document.getElementById("app-search-replace-toggle-clinical-practices").checked;
+    if (!toggle_ids && !toggle_modules && !toggle_exercises && !toggle_clinical_tests && !toggle_masterclasses && !toggle_webinars && !toggle_clinical_practices)
+        return displaySearchReplaceError("Please provide at least one type of Sanity Content by ticking the checkboxes.");
+
+    const contentTypes = [];
+    if (toggle_modules) contentTypes.push("ebpModule");
+    if (toggle_exercises) contentTypes.push("exercise");
+    if (toggle_clinical_tests) contentTypes.push("clinicalTest");
+    if (toggle_masterclasses) contentTypes.push("masterclass");
+    if (toggle_webinars) contentTypes.push("webinar");
+    if (toggle_clinical_practices) contentTypes.push("clinicalPractice");
+
+    let urls = [];
+    const query = `*[_type in ${JSON.stringify(contentTypes)} && language == "fr"]`;
+    const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${encodeURIComponent(query)}`;
+    urls.push(url);
+
+    if (toggle_ids) {
+        chunkArray(cont_ids, ID_CHUNKSIZE).forEach(chunk => {
+            const query = `*[_id in ${JSON.stringify(chunk)} && language == "fr"]`;
+            const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${encodeURIComponent(query)}`;
+            urls.push(url);
+        });
+    }
+
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Prevent newline in translation files.
+document.addEventListener("keydown", function (event) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+
+    // Traverse up to check if inside a contenteditable element with data-source
+    while (node && node !== document) {
+        if (
+        node.nodeType === 1 && // ELEMENT_NODE
+        node.hasAttribute("data-source") &&
+        node.getAttribute("contenteditable") === "true"
+        ) {
+        if (event.key === "Enter") {
+            event.preventDefault(); // Prevent <br> or breaking element
+            return false;
+        }
+        }
+        node = node.parentNode;
+    }
+});
+
+// Prevent newline in translation files using copy/paste.
+document.addEventListener("paste", function (event) {
+    const target = event.target;
+
+    if (
+        target.nodeType === 1 &&
+        target.hasAttribute("data-source") &&
+        target.getAttribute("contenteditable") === "true"
+    ) {
+        event.preventDefault();
+
+        const text = (event.clipboardData || window.clipboardData)
+        .getData("text/plain")
+        .replace(/[\r\n]+/g, " "); // Strip line breaks
+
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        range.deleteContents(); // Remove current selection, if any
+
+        // Create a text node with the pasted text
+        const textNode = document.createTextNode(text);
+        range.insertNode(textNode);
+
+        // Move the caret to the end of the inserted text
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+});
+
+// TEMP: Apply some changes to the document.
+document.getElementById("app-search-replace-previous").addEventListener("click", function (event) {
+
+    if (domContent === null) return displaySearchReplaceError("Could NOT find loaded document, try reloading the document.");
+
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    domContentPending = true;
+
+    // TODO: Clear document from data-diff elements (before S&R or it might try to replace in the tag as well).
+
+    for (const child of rteditor.children) {
+        for (const grandchild of child.children) {
+            if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "Iliotibial", "Ilio-Tibial");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "iliotibial", "ilio-tibial");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "movement", "motion");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "available", "accessible");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "an elastic band", "a resitance band");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "elastic band", "resitance band");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "with the", "<b>with the</b>");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "et al", "<b>et al</b>");
+                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "Noble test", "Nobles test");
+            }
+        }
+    }
+
+    // console.log(domContent.children);
+    // console.log(rteditor.children);
+
+    if (domContent.children.length !== rteditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
+    for (let i = 0; i < rteditor.children.length; i++) {
+        const childOriginal = domContent.children[i];
+        const childEditor = rteditor.children[i];
+
+        if (childOriginal.children.length !== childEditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
+        for (let j = 0; j < childEditor.children.length; j++) {
+            const grandchildOriginal = childOriginal.children[j];
+            const grandchildEditor = childEditor.children[j];
+            
+            if (grandchildOriginal.nodeType === 1 && grandchildOriginal.hasAttribute("data-source") && grandchildEditor.nodeType === 1 && grandchildEditor.hasAttribute("data-source")) {
+                const diff = diffXML(grandchildOriginal.innerHTML, grandchildEditor.innerHTML);
+                let hTemp = "";
+                for (let part of diff) {
+                    if (part.added) {
+                        // console.log(`%c${part.value.after}`, "color: green");
+                        hTemp += `<span data-diff="yes">${part.value.after}</span>`;
+                    } else if (part.removed) {
+                        // console.log(`%c${part.value.before}`, "color: red");
+                        // hTemp += part.value.before;
+                    } else if (part.replaced) {
+                        // console.log(`%c${part.value.before}%c\n%c${part.value.after}`, "color: red", "", "color: green");
+                        hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${part.value.after}</span>`;
+                    } else {
+                        // console.log(`%c${part.value.after}`, "color: grey");
+                        hTemp += part.value.after;
+                    }
+                }
+                grandchildEditor.innerHTML = hTemp;
+            }
+        }
+    }
+        
+    // downloadFile(hContent, "temp.html", "text/html");
+
+    document.getElementById("app-search-replace-apply").style.display = "";
 });

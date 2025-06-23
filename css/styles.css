@@ -61,7 +61,8 @@ button[data-inverted="true"]:hover {
 }
 
 input,
-textarea {
+textarea,
+.rteditor {
     line-height: 1.465;
     box-shadow: none;
     -webkit-font-smoothing: inherit;
@@ -80,23 +81,37 @@ textarea {
     height: 2.188rem;
 }
 
-textarea {
+.rteditor {
+    display: flex;
+    flex-direction: column;
+    min-height: 2.188rem;
+    resize: none;
+    overflow-y: auto;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+textarea,
+.rteditor {
     height: 100%;
     resize: none;
 }
 
 input:hover,
-textarea:hover {
+textarea:hover,
+.rteditor:hover {
     border-color: var(--input-hover-color);
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+.rteditor:focus {
     border-color: var(--input-focus-color);
 }
 
 input::placeholder,
-textarea::placeholder {
+textarea::placeholder,
+.rteditor::placeholder {
     color: var(--input-placeholder-color);
     opacity: 1;
 }

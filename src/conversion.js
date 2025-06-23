@@ -122,7 +122,6 @@ function jsonExtractContent(root, node, units, current="") {
             } catch (error) {
                 link = "";
             }
-            console.log(link);
             units.push(new rawunit(`<embed src="${link}" type="application/pdf">`));
         }
     }
@@ -162,6 +161,7 @@ function htmlNestContent(marks, text) {
         if (marks[i] in nativeMarks) {
             newmark = document.createElement(nativeMarks[marks[i]]);
         } else {
+            if (!marks[i]) return text;
             newmark = document.createElement("span");
             newmark.setAttribute("data-mark", marks[i]);
         }
@@ -205,27 +205,28 @@ function htmlUnnestContent(node, children, marks = []) {
 // Prepend style header to HTML string.
 function applyStyleToHTML(hContent) {
     const hStyle = document.createElement("style");
-    hStyle.textContent = "* { font-family: \"Segoe UI\", sans-serif; } "
-    + "[data-type=\"pt\"] { color: royalblue; } "
-    + "[data-list] { position: relative; padding-left: 3em; } "
-    + "[data-list]::before { content: \"•\"; position: absolute; left: 1.5em; } "
-    + "[data-list][data-level=\"2\"] { --indent-level: 2; padding-left: calc(var(--indent-level) * 3em); } "
-    + "[data-list][data-level=\"2\"]::before { --indent-level: 2; left: calc(var(--indent-level) * 3em - 1.5em); } "
-    + "[data-list][data-level=\"3\"] { --indent-level: 3; padding-left: calc(var(--indent-level) * 3em); } "
-    + "[data-list][data-level=\"3\"]::before { --indent-level: 3; left: calc(var(--indent-level) * 3em - 1.5em); } "
-    + "[data-list][data-level=\"4\"] { --indent-level: 4; padding-left: calc(var(--indent-level) * 3em); } "
-    + "[data-list][data-level=\"4\"]::before { --indent-level: 4; left: calc(var(--indent-level) * 3em - 1.5em); } "
-    + "[data-list][data-level=\"5\"] { --indent-level: 5; padding-left: calc(var(--indent-level) * 3em); } "
-    + "[data-list][data-level=\"5\"]::before { --indent-level: 5; left: calc(var(--indent-level) * 3em - 1.5em); } "
-    + "[data-list][data-level=\"6\"] { --indent-level: 6; padding-left: calc(var(--indent-level) * 3em); } "
-    + "[data-list][data-level=\"6\"]::before { --indent-level: 6; left: calc(var(--indent-level) * 3em - 1.5em); } "
-    + "h1 { font-size: 200%; } h2 { font-size: 185%; } h3 { font-size: 170%; } "
-    + "h4 { font-size: 155%; } h5 { font-size: 140%; } h6 { font-size: 125%; } "
-    + "h1, h2, h3, h4, h5, h6 { text-align: center; } "
-    + "span[data-mark] { color: #007bff; text-decoration: underline; cursor: pointer; } "
-    + ".content { max-width: 800pt; margin: 0 auto; box-sizing: border-box; border-bottom: 5pt solid black; padding: 20pt; } "
-    + "img { border: 2pt solid black; display: block; margin: auto; width: 100%; max-width: 500pt; height: auto; max-height: 100%; } "
-    + "embed { display: block; margin: auto; width: 500pt; height: 285pt; }"
+    hStyle.textContent = ""
+    + "div.content { font-family: \"Segoe UI\", sans-serif; } "
+    + "div.content > [data-type=\"pt\"] { color: royalblue; } "
+    + "div.content > [data-list] { position: relative; padding-left: 3em; } "
+    + "div.content > [data-list]::before { content: \"•\"; position: absolute; left: 1.5em; } "
+    + "div.content > [data-list][data-level=\"2\"] { --indent-level: 2; padding-left: calc(var(--indent-level) * 3em); } "
+    + "div.content > [data-list][data-level=\"2\"]::before { --indent-level: 2; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "div.content > [data-list][data-level=\"3\"] { --indent-level: 3; padding-left: calc(var(--indent-level) * 3em); } "
+    + "div.content > [data-list][data-level=\"3\"]::before { --indent-level: 3; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "div.content > [data-list][data-level=\"4\"] { --indent-level: 4; padding-left: calc(var(--indent-level) * 3em); } "
+    + "div.content > [data-list][data-level=\"4\"]::before { --indent-level: 4; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "div.content > [data-list][data-level=\"5\"] { --indent-level: 5; padding-left: calc(var(--indent-level) * 3em); } "
+    + "div.content > [data-list][data-level=\"5\"]::before { --indent-level: 5; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "div.content > [data-list][data-level=\"6\"] { --indent-level: 6; padding-left: calc(var(--indent-level) * 3em); } "
+    + "div.content > [data-list][data-level=\"6\"]::before { --indent-level: 6; left: calc(var(--indent-level) * 3em - 1.5em); } "
+    + "div.content > h1 { font-size: 200%; } div.content > h2 { font-size: 185%; } div.content > h3 { font-size: 170%; } "
+    + "div.content > h4 { font-size: 155%; } div.content > h5 { font-size: 140%; } div.content > h6 { font-size: 125%; } "
+    + "div.content > h1, div.content > h2, div.content > h3, div.content > h4, div.content > h5, div.content > h6 { text-align: center; } "
+    + "div.content span[data-mark] { color: #007bff; text-decoration: underline; cursor: pointer; } "
+    + "div.content { max-width: 800pt; margin: 0 auto; box-sizing: border-box; border-bottom: 5pt solid black; padding: 20pt; } "
+    + "div.content > a > img { border: 2pt solid black; display: block; margin: auto; width: 100%; max-width: 500pt; height: auto; max-height: 100%; } "
+    + "div.content > a > embed { display: block; margin: auto; width: 500pt; height: 285pt; }"
     return hStyle.outerHTML + "\n\n" + hContent;
 }
 

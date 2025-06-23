@@ -19,7 +19,8 @@
 
 #app-page,
 #app-exercises,
-#app-ai {
+#app-ai,
+#app-search-replace {
     outline-style: solid;
     outline-width: 1pt;
     outline-color: var(--accent-color);
@@ -38,18 +39,45 @@
 
 #app-page::-webkit-scrollbar,
 #app-exercises::-webkit-scrollbar,
-#app-ai::-webkit-scrollbar {
+#app-ai::-webkit-scrollbar,
+#app-search-replace::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
 
 #app-page > div,
 #app-exercises > div,
-#app-ai > div {
-    align-items: center;
+#app-ai > div,
+#app-search-replace > div {
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
+}
+
+#app-search-replace > .rteditor {
+    box-sizing: border-box;
+    display: flex;
+    height: 100%;
+    overflow-y: scroll;
+    flex-direction: column;
+}
+
+#app-search-replace > .rteditor::-webkit-scrollbar {
+    width: 8px; /* Adjust as needed */
+}
+
+#app-search-replace > .rteditor::-webkit-scrollbar-track {
+    background: transparent; /* Hides the track */
+}
+
+#app-search-replace > .rteditor::-webkit-scrollbar-thumb {
+    background-color: var(--input-hover-color);
+    border-radius: 1px;
+}
+
+#app-search-replace > .rteditor::-webkit-scrollbar-thumb:hover {
+    background-color: var(--input-focus-color);
+    cursor: default;
 }
 
 #app-page > h1,
@@ -57,13 +85,16 @@
 #app-exercises > h1,
 #app-exercises > hr,
 #app-ai > h1,
-#app-ai > hr {
+#app-ai > hr,
+#app-search-replace > h1,
+#app-search-replace > hr {
     margin: 0.5rem 0rem;
 }
 
 #app-page button,
 #app-exercises button,
-#app-ai button[short="true"] {
+#app-ai button[short="true"],
+#app-search-replace button[short="true"] {
     max-width: 8rem;
 }
 
@@ -209,4 +240,152 @@
 .app-ai-subpart {
     max-width: 80%;
     width: 80%;
+}
+
+/* Translation File formatting */
+div.content {
+    font-family: "Segoe UI", sans-serif;
+}
+
+div.content > [data-type="pt"] {
+    color: royalblue;
+}
+
+div.content > [data-list] {
+    position: relative;
+    padding-left: 3em;
+}
+
+div.content > [data-list]::before {
+    content: "•";
+    position: absolute;
+    left: 1.5em;
+}
+
+div.content > [data-list][data-level="2"] {
+    --indent-level: 2;
+    padding-left: calc(var(--indent-level) * 3em);
+}
+
+div.content > [data-list][data-level="2"]::before {
+    --indent-level: 2;
+    left: calc(var(--indent-level) * 3em - 1.5em);
+}
+
+div.content > [data-list][data-level="3"] {
+    --indent-level: 3;
+    padding-left: calc(var(--indent-level) * 3em);
+}
+
+div.content > [data-list][data-level="3"]::before {
+    --indent-level: 3;
+    left: calc(var(--indent-level) * 3em - 1.5em);
+}
+
+div.content > [data-list][data-level="4"] {
+    --indent-level: 4;
+    padding-left: calc(var(--indent-level) * 3em);
+}
+
+div.content > [data-list][data-level="4"]::before {
+    --indent-level: 4;
+    left: calc(var(--indent-level) * 3em - 1.5em);
+}
+
+div.content > [data-list][data-level="5"] {
+    --indent-level: 5;
+    padding-left: calc(var(--indent-level) * 3em);
+}
+
+div.content > [data-list][data-level="5"]::before {
+    --indent-level: 5;
+    left: calc(var(--indent-level) * 3em - 1.5em);
+}
+
+div.content > [data-list][data-level="6"] {
+    --indent-level: 6;
+    padding-left: calc(var(--indent-level) * 3em);
+}
+
+div.content > [data-list][data-level="6"]::before {
+    --indent-level: 6;
+    left: calc(var(--indent-level) * 3em - 1.5em);
+}
+
+div.content > h1 {
+    font-size: 200%;
+}
+
+div.content > h2 {
+    font-size: 185%;
+}
+
+div.content > h3 {
+    font-size: 170%;
+}
+
+div.content > h4 {
+    font-size: 155%;
+}
+
+div.content > h5 {
+    font-size: 140%;
+}
+
+div.content > h6 {
+    font-size: 125%;
+}
+
+div.content > h1,
+div.content > h2,
+div.content > h3,
+div.content > h4,
+div.content > h5,
+div.content > h6 {
+    text-align: center;
+}
+
+div.content span[data-mark] {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+div.content span[data-diff="yes"] {
+    color: darkgreen;
+    background-color: lightgreen;
+    background-blend-mode: color-burn;
+    cursor: pointer;
+}
+
+div.content span[data-diff="no"] {
+    color: darkred;
+    background-color: lightcoral;
+    background-blend-mode: color-burn;
+    cursor: pointer;
+}
+
+div.content {
+    max-width: 800pt;
+    margin: 0 auto;
+    box-sizing: border-box;
+    border-bottom: 5pt solid var(--font-color);
+    padding: 20pt;
+}
+
+div.content > a > img {
+    border: 2pt solid black;
+    display: block;
+    margin: auto;
+    width: 100%;
+    max-width: 500pt;
+    height: auto;
+    max-height: 100%;
+}
+
+div.content > a > embed {
+    display: block;
+    margin: auto;
+    width: 500pt;
+    height: 285pt;
 }
