@@ -329,8 +329,8 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
         dstModule = JSON.parse(JSON.stringify(srcModule));
 
     // Rewrite target subsection.
-    const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
-    // const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    // const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -435,12 +435,12 @@ async function applyAIContentAndOverwrite() {
     srcModule["bibliography"] = trgModule["bibliography"];
     srcModule["parts"] = trgModule["parts"];
 
-    // url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
-    // request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
-    // request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": srcModule}]});
+    url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": srcModule}]});
 
-    // response = await fetch(url, request);
-    // if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
     // Delete AI-generated document.
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
@@ -562,6 +562,15 @@ function revertChange(element) {
 
 
 
+
+// Strip an html string from diff tags.
+function stripDiffTags(str) {
+
+    const parser = new DOMParser();
+    const domContent = parser.parseFromString(hContent, "text/html").body;
+
+
+}
 
 // Naive search and replace function.
 function replaceAllSubstrings(inputString, searchSubstring, replacementSubstring) {

@@ -1,57 +1,57 @@
 // Check pseudo validity of html string.
-function endsInTextContentArea(str) {
-    let inTag = false;
-    let inAttrValue = false;
-    let quoteChar = null;
-    let inComment = false;
+// function endsInTextContentArea(str) {
+//     let inTag = false;
+//     let inAttrValue = false;
+//     let quoteChar = null;
+//     let inComment = false;
 
-    for (let i = 0; i < str.length; i++) {
-        const c = str[i];
-        const nextTwo = str.slice(i, i + 2);
-        const nextThree = str.slice(i, i + 3);
+//     for (let i = 0; i < str.length; i++) {
+//         const c = str[i];
+//         const nextTwo = str.slice(i, i + 2);
+//         const nextThree = str.slice(i, i + 3);
 
-        // Handle comment start
-        if (!inTag && !inComment && str.slice(i, i + 4) === '<!--') {
-            inComment = true;
-            i += 3;
-            continue;
-        }
+//         // Handle comment start
+//         if (!inTag && !inComment && str.slice(i, i + 4) === '<!--') {
+//             inComment = true;
+//             i += 3;
+//             continue;
+//         }
 
-        // Handle comment end
-        if (inComment && nextThree === '-->') {
-            inComment = false;
-            i += 2;
-            continue;
-        }
+//         // Handle comment end
+//         if (inComment && nextThree === '-->') {
+//             inComment = false;
+//             i += 2;
+//             continue;
+//         }
 
-        if (inComment) continue;
+//         if (inComment) continue;
 
-        if (!inTag && c === '<') {
-            inTag = true;
-            continue;
-        }
+//         if (!inTag && c === '<') {
+//             inTag = true;
+//             continue;
+//         }
 
-        if (inTag && !inAttrValue && (c === '"' || c === "'")) {
-            inAttrValue = true;
-            quoteChar = c;
-            continue;
-        }
+//         if (inTag && !inAttrValue && (c === '"' || c === "'")) {
+//             inAttrValue = true;
+//             quoteChar = c;
+//             continue;
+//         }
 
-        if (inAttrValue && c === quoteChar) {
-            inAttrValue = false;
-            quoteChar = null;
-            continue;
-        }
+//         if (inAttrValue && c === quoteChar) {
+//             inAttrValue = false;
+//             quoteChar = null;
+//             continue;
+//         }
 
-        if (inTag && !inAttrValue && c === '>') {
-            inTag = false;
-            continue;
-        }
-    }
+//         if (inTag && !inAttrValue && c === '>') {
+//             inTag = false;
+//             continue;
+//         }
+//     }
 
-    // Final state check
-    return !inTag && !inAttrValue && !inComment;
-}
+//     // Final state check
+//     return !inTag && !inAttrValue && !inComment;
+// }
 
 // Check validity of XML string.
 function isValidXML(str) {
@@ -68,107 +68,107 @@ function isValidXML(str) {
 }
 
 // Split html string into the biggest/smallest valid substring possible.
-function splitValidXMLCandidate(str, biggest = true) {
-    if (biggest) {
-        let valid = str;
-        let rest = "";
-        while (valid.length && !isValidXML(valid)) { // NOTE: Use this instead if diff highlighter breaks.
-            // while (valid.length && !endsInTextContentArea(valid)) {
-            rest = valid.slice(-1) + rest;
-            valid = valid.slice(0, -1);
-        }
-        return { valid, rest }
-    } else {
-        if (str.length <= 0) return { "valid": "", "rest": str };
-        let valid = str[0];
-        let rest = str.slice(1);
-        while (valid.length < str.length && !isValidXML(valid)) {
-            valid = valid + rest[0];
-            rest = rest.slice(1);
-        }
-        if (!isValidXML(valid)) {
-            return { "valid": rest, "rest": valid };
-        }
-        return { valid, rest };
-    }
-}
+// function splitValidXMLCandidate(str, biggest = true) {
+//     if (biggest) {
+//         let valid = str;
+//         let rest = "";
+//         while (valid.length && !isValidXML(valid)) { // NOTE: Use this instead if diff highlighter breaks.
+//             // while (valid.length && !endsInTextContentArea(valid)) {
+//             rest = valid.slice(-1) + rest;
+//             valid = valid.slice(0, -1);
+//         }
+//         return { valid, rest }
+//     } else {
+//         if (str.length <= 0) return { "valid": "", "rest": str };
+//         let valid = str[0];
+//         let rest = str.slice(1);
+//         while (valid.length < str.length && !isValidXML(valid)) {
+//             valid = valid + rest[0];
+//             rest = rest.slice(1);
+//         }
+//         if (!isValidXML(valid)) {
+//             return { "valid": rest, "rest": valid };
+//         }
+//         return { valid, rest };
+//     }
+// }
 
 // Split xml string into the biggest/smallest valid substring possible.
-function splitValidXML(str) {
-    let split = splitValidXMLCandidate(str, biggest = false);
-    if (split.valid.length === 1) {
-        split = splitValidXMLCandidate(str, biggest = true);
-    }
-    return split;
-}
+// function splitValidXML(str) {
+//     let split = splitValidXMLCandidate(str, biggest = false);
+//     if (split.valid.length === 1) {
+//         split = splitValidXMLCandidate(str, biggest = true);
+//     }
+//     return split;
+// }
 
 // Diff two strings.
-function diffWords(str1, str2) {
+// function diffWords(str1, str2) {
 
-    // Prepare diffs and result buffer.
-    const diff = Diff.diffWords(str1, str2);
-    let res = [];
+//     // Prepare diffs and result buffer.
+//     const diff = Diff.diffWords(str1, str2);
+//     let res = [];
 
-    // Buffer added and removed words.
-    let added = "";
-    let removed = "";
+//     // Buffer added and removed words.
+//     let added = "";
+//     let removed = "";
 
-    // For each difference.
-    for (let part of diff) {
+//     // For each difference.
+//     for (let part of diff) {
 
-        // Element added.
-        if (part.added) {
-            added += part.value;
-            continue;
-        }
+//         // Element added.
+//         if (part.added) {
+//             added += part.value;
+//             continue;
+//         }
 
-        // Element removed.
-        if (part.removed) {
-            removed += part.value;
-            continue;
-        }
+//         // Element removed.
+//         if (part.removed) {
+//             removed += part.value;
+//             continue;
+//         }
 
-        // Push added/removed element.
-        if (added.length || removed.length) {
-            res.push({
-                "added": (!!added.length && !removed.length),
-                "removed": (!added.length && !!removed.length),
-                "replaced": (!!added.length && !!removed.length),
-                "value": {
-                    "before": removed,
-                    "after": added,
-                }
-            })
-        }
+//         // Push added/removed element.
+//         if (added.length || removed.length) {
+//             res.push({
+//                 "added": (!!added.length && !removed.length),
+//                 "removed": (!added.length && !!removed.length),
+//                 "replaced": (!!added.length && !!removed.length),
+//                 "value": {
+//                     "before": removed,
+//                     "after": added,
+//                 }
+//             })
+//         }
 
-        // Push unchanged elements.
-        added = "";
-        removed = "";
-        res.push({
-            "added": false,
-            "removed": false,
-            "replaced": false,
-            "value": {
-                "before": part.value,
-                "after": part.value,
-            }
-        })
-    }
+//         // Push unchanged elements.
+//         added = "";
+//         removed = "";
+//         res.push({
+//             "added": false,
+//             "removed": false,
+//             "replaced": false,
+//             "value": {
+//                 "before": part.value,
+//                 "after": part.value,
+//             }
+//         })
+//     }
 
-    // Push pending changed elements.
-    res.push({
-        "added": (!!added.length && !removed.length),
-        "removed": (!added.length && !!removed.length),
-        "replaced": (!!added.length && !!removed.length),
-        "value": {
-            "before": removed,
-            "after": added,
-        }
-    })
+//     // Push pending changed elements.
+//     res.push({
+//         "added": (!!added.length && !removed.length),
+//         "removed": (!added.length && !!removed.length),
+//         "replaced": (!!added.length && !!removed.length),
+//         "value": {
+//             "before": removed,
+//             "after": added,
+//         }
+//     })
 
-    // Return final result.
-    return res;
-}
+//     // Return final result.
+//     return res;
+// }
 
 // Get first diff of two XML strings without breaking syntax.
 // function firstDiffXml(xml1, xml2) {
@@ -305,13 +305,15 @@ function diffWords(str1, str2) {
 
 
 
-
+// Tokenize HTML into words and tags.
 function tokenizeHTML(input) {
+
     const tokens = [];
     let i = 0;
 
     while (i < input.length) {
-        if (input[i] === '<') {
+
+        if (input[i] === "<") {
             // We're at a tag start, find the closing '>'
             let tagEnd = input.indexOf('>', i);
             if (tagEnd === -1) {
