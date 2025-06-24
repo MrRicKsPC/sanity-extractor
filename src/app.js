@@ -379,7 +379,8 @@ async function compareOriginalWithAIContent() {
     const moduleId = cont_ids[0];
     const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
 
-    const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};${aiModuleId}`;
+    // const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};${aiModuleId}`;
+    const compareLink = `https://fullphysio.sanity.studio/structure/__edit__${moduleId}%2Ctype%3DebpModule;${aiModuleId}`;
     window.open(compareLink, "_blank");
 
     console.log(compareLink);
@@ -566,10 +567,22 @@ function revertChange(element) {
 // Strip an html string from diff tags.
 function stripDiffTags(str) {
 
+    // Parse HTML string.
     const parser = new DOMParser();
-    const domContent = parser.parseFromString(hContent, "text/html").body;
+    const content = parser.parseFromString(str, "text/html").body;
 
+    // Replace all spans from the string.
+    while (content.querySelectorAll("span[data-diff]").length) {
 
+        const span = content.querySelectorAll("span[data-diff]")[0];
+        span.outerHTML = span.innerHTML;
+        // const parent = span.parentNode;
+        // const fragment = document.createRange().createContextualFragment(span.innerHTML);
+        // parent.replaceChild(fragment, span);
+    }
+
+    // Return stripped string.
+    return content.innerHTML;
 }
 
 // Naive search and replace function.
@@ -627,6 +640,56 @@ async function loadTranslationFilesForSearchReplace(cont_ids, urls, request) {
         return displaySearchReplaceError("Unable to parse Sanity API response.");
     }
     document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "none";
+}
+
+// Highlight differences in S&R.
+function highlightSRDifferences() {
+    if (domContent === null) return displaySearchReplaceError("Could NOT find loaded document, try reloading the document.");
+
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    domContentPending = true;
+
+    // Clear document from data-diff elements.
+    rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
+
+    // console.log(domContent.children);
+    // console.log(rteditor.children);
+
+    if (domContent.children.length !== rteditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
+    for (let i = 0; i < rteditor.children.length; i++) {
+        const childOriginal = domContent.children[i];
+        const childEditor = rteditor.children[i];
+
+        if (childOriginal.children.length !== childEditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
+        for (let j = 0; j < childEditor.children.length; j++) {
+            const grandchildOriginal = childOriginal.children[j];
+            const grandchildEditor = childEditor.children[j];
+            
+            if (grandchildOriginal.nodeType === 1 && grandchildOriginal.hasAttribute("data-source") && grandchildEditor.nodeType === 1 && grandchildEditor.hasAttribute("data-source")) {
+                const diff = diffXML(grandchildOriginal.innerHTML, grandchildEditor.innerHTML);
+                let hTemp = "";
+                for (let part of diff) {
+                    if (part.added) {
+                        // console.log(`%c${part.value.after}`, "color: green");
+                        hTemp += `<span data-diff="yes">${part.value.after}</span>`;
+                        // hTemp += `<span data-diff="yes" title="${"➕"}" onclick="revertChange(this)">${part.value.after}</span>`;
+                    } else if (part.removed) {
+                        // console.log(`%c${part.value.before}`, "color: red");
+                        // hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${"➖"}</span>`;
+                    } else if (part.replaced) {
+                        // console.log(`%c${part.value.before}%c\n%c${part.value.after}`, "color: red", "", "color: green");
+                        hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${part.value.after}</span>`;
+                    } else {
+                        // console.log(`%c${part.value.after}`, "color: grey");
+                        hTemp += part.value.after;
+                    }
+                }
+                grandchildEditor.innerHTML = hTemp;
+            }
+        }
+    }
+        
+    // downloadFile(hContent, "temp.html", "text/html");
 }
 
 // Set tabs to only-one active.
@@ -870,6 +933,8 @@ document.getElementById("app-search-replace-load-en").addEventListener("click", 
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
 
+    document.getElementById("app-search-replace-apply").style.display = "";
+
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
@@ -918,6 +983,8 @@ document.getElementById("app-search-replace-load-fr").addEventListener("click", 
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
 
+    document.getElementById("app-search-replace-apply").style.display = "";
+
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
@@ -937,6 +1004,7 @@ document.addEventListener("keydown", function (event) {
         node.getAttribute("contenteditable") === "true"
         ) {
         if (event.key === "Enter") {
+            highlightSRDifferences();
             event.preventDefault(); // Prevent <br> or breaking element
             return false;
         }
@@ -975,6 +1043,8 @@ document.addEventListener("paste", function (event) {
         range.setEndAfter(textNode);
         selection.removeAllRanges();
         selection.addRange(range);
+
+        highlightSRDifferences();
     }
 });
 
@@ -986,7 +1056,8 @@ document.getElementById("app-search-replace-previous").addEventListener("click",
     const rteditor = document.querySelector('#app-search-replace .rteditor');
     domContentPending = true;
 
-    // TODO: Clear document from data-diff elements (before S&R or it might try to replace in the tag as well).
+    // Clear document from data-diff elements.
+    rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
 
     for (const child of rteditor.children) {
         for (const grandchild of child.children) {
@@ -1003,44 +1074,9 @@ document.getElementById("app-search-replace-previous").addEventListener("click",
             }
         }
     }
+});
 
-    // console.log(domContent.children);
-    // console.log(rteditor.children);
-
-    if (domContent.children.length !== rteditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
-    for (let i = 0; i < rteditor.children.length; i++) {
-        const childOriginal = domContent.children[i];
-        const childEditor = rteditor.children[i];
-
-        if (childOriginal.children.length !== childEditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
-        for (let j = 0; j < childEditor.children.length; j++) {
-            const grandchildOriginal = childOriginal.children[j];
-            const grandchildEditor = childEditor.children[j];
-            
-            if (grandchildOriginal.nodeType === 1 && grandchildOriginal.hasAttribute("data-source") && grandchildEditor.nodeType === 1 && grandchildEditor.hasAttribute("data-source")) {
-                const diff = diffXML(grandchildOriginal.innerHTML, grandchildEditor.innerHTML);
-                let hTemp = "";
-                for (let part of diff) {
-                    if (part.added) {
-                        // console.log(`%c${part.value.after}`, "color: green");
-                        hTemp += `<span data-diff="yes">${part.value.after}</span>`;
-                    } else if (part.removed) {
-                        // console.log(`%c${part.value.before}`, "color: red");
-                        // hTemp += part.value.before;
-                    } else if (part.replaced) {
-                        // console.log(`%c${part.value.before}%c\n%c${part.value.after}`, "color: red", "", "color: green");
-                        hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${part.value.after}</span>`;
-                    } else {
-                        // console.log(`%c${part.value.after}`, "color: grey");
-                        hTemp += part.value.after;
-                    }
-                }
-                grandchildEditor.innerHTML = hTemp;
-            }
-        }
-    }
-        
-    // downloadFile(hContent, "temp.html", "text/html");
-
-    document.getElementById("app-search-replace-apply").style.display = "";
+// TEMP: Highlight changes on the document.
+document.getElementById("app-search-replace-next").addEventListener("click", function (event) {
+    highlightSRDifferences();
 });
