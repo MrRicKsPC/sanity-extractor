@@ -62,20 +62,32 @@
     flex-direction: column;
 }
 
-#app-search-replace > .rteditor::-webkit-scrollbar {
-    width: 8px; /* Adjust as needed */
+.pteditor {
+    box-sizing: border-box;
+    display: flex;
+    height: 100pt;
+    overflow-y: scroll;
+    flex-direction: column;
 }
 
-#app-search-replace > .rteditor::-webkit-scrollbar-track {
-    background: transparent; /* Hides the track */
+#app-search-replace > .rteditor::-webkit-scrollbar,
+.pteditor::-webkit-scrollbar {
+    width: 8px;
 }
 
-#app-search-replace > .rteditor::-webkit-scrollbar-thumb {
+#app-search-replace > .rteditor::-webkit-scrollbar-track,
+.pteditor::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#app-search-replace > .rteditor::-webkit-scrollbar-thumb,
+.pteditor::-webkit-scrollbar-thumb {
     background-color: var(--input-hover-color);
     border-radius: 1px;
 }
 
-#app-search-replace > .rteditor::-webkit-scrollbar-thumb:hover {
+#app-search-replace > .rteditor::-webkit-scrollbar-thumb:hover,
+.pteditor::-webkit-scrollbar-thumb:hover {
     background-color: var(--input-focus-color);
     cursor: default;
 }
@@ -336,6 +348,10 @@ div.content > h6 {
     font-size: 125%;
 }
 
+.ptlabel {
+    margin: 5pt 0pt;
+}
+
 div.content > h1,
 div.content > h2,
 div.content > h3,
@@ -388,4 +404,9 @@ div.content > a > embed {
     margin: auto;
     width: 500pt;
     height: 285pt;
+}
+
+.prompt {
+    align-items: center;
+    width: 100%;
 }

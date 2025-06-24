@@ -6,8 +6,15 @@ let __words__ = [null, null, null, null, null];
 let domContent = null;
 let domContentPending = false;
 
-// document.getElementById("app-ai-document-id").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5"; // TODO: Remove after debugging.
+// TODO: Remove after debugging.
 document.getElementById("app-search-replace-ids").value = "28efe934-0344-4119-bd49-ebee0f0e617b, 4292126e-8af0-4c9d-8477-95be545a1ef1, 930025ad-0b9b-4b4b-804d-8c39e6d02f85-en, drafts.f521e8d4-36f3-44d8-bd48-4696432396c7"; // TODO: Remove after debugging.
+document.getElementById("app-ai-context").value = `Je crée des modules de formation pour kinésithérapeutes sous forme de synthèses écrites, basées sur la littérature scientifique, couvrant des concepts, pathologies ou techniques en kinésithérapie.
+Ces modules doivent aider les kinésithérapeutes à actualiser leurs connaissances et à appliquer des pratiques cliniques fondées sur des preuves.
+Mes textes actuels sont trop longs, denses et peu captivants, ce qui peut freiner leur lecture. En revanche, les transcriptions de masterclass vidéo, avec un style oral, familier mais scientifique, sont plus accessibles et engageantes.
+Je te fournis un texte que je veux retravailler pour le rendre fluide, attrayant et motivant à lire, tout en restant scientifique et professionnel.`
+document.getElementById("app-ai-instructions").value = `Synthétise légèrement pour aller à l’essentiel, sans perdre les idées clés ni les sources citées, qui garantissent la crédibilité.
+Rends le texte accrocheur dès le début et engageant jusqu’à la fin, sans utiliser d’émoticônes.
+Adopte un ton conversational, comme dans une masterclass orale, qui parle directement au kinésithérapeute : qu’est-ce qui va m’aider dans ma pratique quotidienne ?`
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -292,6 +299,11 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     const [project, dataset, token, automation, secret] = __words__;
     const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
 
+    // Get user prompt from interface.
+    const context = document.getElementById("app-ai-context").value.split("\n").filter(str => str.trim() !== "");
+    const instructions = document.getElementById("app-ai-instructions").value.split("\n").filter(str => str.trim() !== "");
+    if (!instructions.length) return displayAIActionError("Please give instructions to the AI agent.");
+
     // Fetch source content from Sanity API.
     let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
         encodeURIComponent(`*[_id=="${moduleId}"]`)
@@ -328,9 +340,10 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     if (dstModule["_type"] !== "ebpModule")
         dstModule = JSON.parse(JSON.stringify(srcModule));
 
-    // Rewrite target subsection.
+    // Apply prompt on target subsection.
     // const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
-    const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    // const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    const rewritten = await AI_Custom( "json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -452,6 +465,7 @@ async function applyAIContentAndOverwrite() {
     if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
 
     document.getElementById("app-ai-compare").style.display = "none";
+    document.getElementById("app-ai-prompts").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
     console.log("[SUCCESS] - Your original Sanity document was replaced with the content of the AI-generated content.");
 }
@@ -484,6 +498,7 @@ async function loadModuleForAI() {
     // Add subsection AI action buttons.
     document.getElementById("app-ai-compare").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
+    document.getElementById("app-ai-prompts").style.display = "none";
     deleteSubParts();
     pushModuleTitle(sanityContent["title"]);
     pushSubPartSeparator();
@@ -501,6 +516,7 @@ async function loadModuleForAI() {
         }
         pushSubPartSeparator();
     }
+    document.getElementById("app-ai-prompts").style.display = "";
     if (await existsOnSanity(aiModuleId)) {
         document.getElementById("app-ai-compare").style.display = "";
         document.getElementById("app-ai-apply").style.display = "";
