@@ -10,8 +10,38 @@ function countTokens(content) {
     return tokens.length;
 }
 
+// Split sub part into manageable and relevant paragraphs.
+function splitSubPart(subpart) {
+    let paragraphs = [];
+    let paragraph = [];
+    for (let chunk of subpart) {
+        if (chunk["_type"] !== "block") {
+            if (paragraph.length)
+                paragraphs.push(JSON.parse(JSON.stringify(paragraph)));
+            paragraphs.push(JSON.parse(JSON.stringify([chunk])));
+            paragraph = [];
+            continue;
+        }
+        paragraph.push(chunk);
+    }
+    if (paragraph.length)
+        paragraphs.push(JSON.parse(JSON.stringify(paragraph)));
+    return paragraphs;
+}
+
 // Rewrite a Sanity block.
 async function AI_Rewrite_Simulation(block) {
+
+    // Validate response data.
+    await sleep(3000);
+    const data = block;
+
+    // Return result.
+    return data;
+}
+
+// Apply custom prompt on a Sanity JSON/HTML block.
+async function AI_Custom_Simulation(format, instructions, context, block) {
 
     // Validate response data.
     await sleep(3000);

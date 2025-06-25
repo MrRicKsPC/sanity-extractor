@@ -228,10 +228,11 @@ function pushSubPart(name, id, tokens, callback) {
     
     const divElement = document.createElement("div");
     divElement.setAttribute("class", "app-ai-subparts");
+    divElement.setAttribute("title", `${tokens.join(" + ")} tokens`);
 
     const buttonElement = document.createElement("button");
     buttonElement.setAttribute("id", id);
-    buttonElement.textContent = `${name} (${tokens} tokens)`
+    buttonElement.textContent = `${name} (${tokens.reduce((accumulator, currentValue) => accumulator + currentValue, 0)} tokens in ${tokens.length} requests)`
 
     const spanElement = document.createElement("span");
     spanElement.setAttribute("class", "small-loader");
@@ -341,9 +342,13 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
         dstModule = JSON.parse(JSON.stringify(srcModule));
 
     // Apply prompt on target subsection.
-    // const rewritten = await AI_Rewrite_Simulation(srcModule["parts"][part]["subparts"][subpart]["content"]);
-    // const rewritten = await AI_Rewrite(srcModule["parts"][part]["subparts"][subpart]["content"]);
-    const rewritten = await AI_Custom( "json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
+    const paragraphs = splitSubPart(srcModule["parts"][part]["subparts"][subpart]["content"]);
+    for (let i = 0; i < paragraphs.length; i++) {
+        if (paragraphs[i][0]["_type"] !== "block") continue;
+        paragraphs[i] = AI_Custom("json", instructions, context, paragraphs[i]);
+    }
+    const rewritten = (await Promise.all(paragraphs)).flat();
+    // const rewritten = await AI_Custom("json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -508,7 +513,12 @@ async function loadModuleForAI() {
         pushPartTitle(part["title"]);
         for (let j = 0; j < part["subparts"].length; j++) {
             const subpart = part["subparts"][j];
-            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, countTokens(subpart["content"]), async function() {
+            let tokenCount = [];
+            for (let chunk of splitSubPart(subpart["content"])) {
+                if (chunk[0]["_type"] !== "block") continue;
+                tokenCount.push(countTokens(chunk) + 500);
+            }
+            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, tokenCount, async function() {
                 await rewriteModuleSubpart(moduleId, i, j);
                 document.getElementById("app-ai-compare").style.display = "";
                 document.getElementById("app-ai-apply").style.display = "";
@@ -1096,3 +1106,4 @@ document.getElementById("app-search-replace-previous").addEventListener("click",
 document.getElementById("app-search-replace-next").addEventListener("click", function (event) {
     highlightSRDifferences();
 });
+
