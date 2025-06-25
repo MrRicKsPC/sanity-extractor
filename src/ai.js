@@ -41,7 +41,7 @@ async function AI_Rewrite_Simulation(block) {
 }
 
 // Apply custom prompt on a Sanity JSON/HTML block.
-async function AI_Custom_Simulation(format, instructions, context, block) {
+async function AI_Custom_Simulation(model, format, instructions, context, block) {
 
     // Validate response data.
     await sleep(3000);
@@ -126,12 +126,13 @@ async function AI_Rewrite(block) {
 }
 
 // Apply custom prompt on a Sanity JSON/HTML block.
-async function AI_Custom(format, instructions, context, block) {
+async function AI_Custom(model, format, instructions, context, block) {
 
     // Sanity Automations API body.
     const body = {
         "function": "custom",
         "args": {
+            "model": model,
             "format": format,
             "instructions": instructions,
             "context": context,

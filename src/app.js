@@ -60,6 +60,10 @@ function displaySearchReplaceError(message) {
     document.getElementById("app-search-replace-load-en").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-load-fr").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-apply").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-use-ai").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-replace-button").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-previous").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-next").getElementsByClassName("small-loader")[0].style.display = "none";
     let errorMessage = document.getElementById("app-search-replace-error");
     errorMessage.textContent = message;
     errorMessage.style.display = "";
@@ -305,6 +309,10 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     const instructions = document.getElementById("app-ai-instructions").value.split("\n").filter(str => str.trim() !== "");
     if (!instructions.length) return displayAIActionError("Please give instructions to the AI agent.");
 
+    // Get user model from interface.
+    const model = document.getElementById("app-ai-model").value;
+    if (!model.length) return displayAIActionError("Please give instructions to the AI agent.");
+
     // Fetch source content from Sanity API.
     let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
         encodeURIComponent(`*[_id=="${moduleId}"]`)
@@ -341,14 +349,14 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     if (dstModule["_type"] !== "ebpModule")
         dstModule = JSON.parse(JSON.stringify(srcModule));
 
-    // Apply prompt on target subsection.
+    // Apply prompt on target subsection (paragraph by paragraph).
     const paragraphs = splitSubPart(srcModule["parts"][part]["subparts"][subpart]["content"]);
     for (let i = 0; i < paragraphs.length; i++) {
         if (paragraphs[i][0]["_type"] !== "block") continue;
-        paragraphs[i] = AI_Custom("json", instructions, context, paragraphs[i]);
+        paragraphs[i] = AI_Custom(model, "json", instructions, context, paragraphs[i]);
     }
     const rewritten = (await Promise.all(paragraphs)).flat();
-    // const rewritten = await AI_Custom("json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
+    // const rewritten = await AI_Custom(model, "json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -471,6 +479,7 @@ async function applyAIContentAndOverwrite() {
 
     document.getElementById("app-ai-compare").style.display = "none";
     document.getElementById("app-ai-prompts").style.display = "none";
+    document.getElementById("app-ai-model").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
     console.log("[SUCCESS] - Your original Sanity document was replaced with the content of the AI-generated content.");
 }
@@ -504,6 +513,7 @@ async function loadModuleForAI() {
     document.getElementById("app-ai-compare").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
     document.getElementById("app-ai-prompts").style.display = "none";
+    document.getElementById("app-ai-model").style.display = "none";
     deleteSubParts();
     pushModuleTitle(sanityContent["title"]);
     pushSubPartSeparator();
@@ -527,6 +537,7 @@ async function loadModuleForAI() {
         pushSubPartSeparator();
     }
     document.getElementById("app-ai-prompts").style.display = "";
+    document.getElementById("app-ai-model").style.display = "";
     if (await existsOnSanity(aiModuleId)) {
         document.getElementById("app-ai-compare").style.display = "";
         document.getElementById("app-ai-apply").style.display = "";
@@ -623,7 +634,9 @@ async function loadTranslationFilesForSearchReplace(cont_ids, urls, request) {
     
     if (domContentPending && !confirm("Some of your changes have NOT been applied yet.\nAre you sure you want to reload your Sanity documents?")) return;
     if (domContentPending && !confirm("All pending changes will be lost. Reload documents anyway?")) return;
-    document.getElementById("app-search-replace-apply").style.display = "none";
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "none";
+    }
     const rteditor = document.querySelector('#app-search-replace .rteditor');
     rteditor.innerHTML = "";
     domContent = null;
@@ -751,6 +764,11 @@ if (!initialActiveTab) {
     appTabs[0].classList.add("active");
 }
 
+// Hide unloaded elements on startup.
+for (let element of document.getElementsByClassName("onlyifloaded")) {
+    element.style.display = "none";
+}
+
 // Toggle manual ID input for upload.
 document.getElementById("app-force-id").addEventListener("click", function(event) {
     document.getElementById("upload-error").style.display = "none";
@@ -778,6 +796,17 @@ document.getElementById("app-search-replace-toggle-clinical-tests").addEventList
 document.getElementById("app-search-replace-toggle-masterclasses").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
 document.getElementById("app-search-replace-toggle-webinars").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
 document.getElementById("app-search-replace-toggle-clinical-practices").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+
+document.getElementById("app-search-replace-toggle-strong").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-italic").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-underline").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-strike").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-toggle-code").addEventListener("click", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+
+// Hide error message upon S&R input field edits.
+document.getElementById("app-search-replace-instructions").addEventListener("input", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-search-value").addEventListener("input", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
+document.getElementById("app-search-replace-replace-value").addEventListener("input", function(event) { document.getElementById("app-search-replace-error").style.display = "none";});
 
 // Listen for download input field edits.
 document.getElementById("app-document-ids").addEventListener("input", function(event) {
@@ -812,7 +841,7 @@ document.getElementById("app-search-replace-ids").addEventListener("input", func
 
 // Download Translation file.
 document.getElementById("app-document-download").addEventListener("click", function(event) {
-    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("download-error").style.display = "none";
     let [project, dataset, token, automation, secret] = __words__;
@@ -835,7 +864,7 @@ document.getElementById("app-document-download").addEventListener("click", funct
 
 // Upload Translation file.
 document.getElementById("app-document-upload").addEventListener("click", function(event) {
-    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("upload-error").style.display = "none";
     let [project, dataset, token, automation, secret] = __words__;
@@ -916,7 +945,7 @@ document.getElementById("app-ai-apply").addEventListener("click", async function
 
 // Load specified EN documents as Translation files for S&R.
 document.getElementById("app-search-replace-load-en").addEventListener("click", async function(event) {
-    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-search-replace-error").style.display = "none";
     let [project, dataset, token, automation, secret] = __words__;
@@ -959,14 +988,16 @@ document.getElementById("app-search-replace-load-en").addEventListener("click", 
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
 
-    document.getElementById("app-search-replace-apply").style.display = "";
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "";
+    }
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
 // Load specified FR documents as Translation files for S&R.
 document.getElementById("app-search-replace-load-fr").addEventListener("click", async function(event) {
-    if (this.getElementsByClassName("small-loader")[0].style.display == "") return;
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-search-replace-error").style.display = "none";
     let [project, dataset, token, automation, secret] = __words__;
@@ -1009,7 +1040,29 @@ document.getElementById("app-search-replace-load-fr").addEventListener("click", 
     const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
 
-    document.getElementById("app-search-replace-apply").style.display = "";
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "";
+    }
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// TODO: Apply changes to actual content on Sanity.
+document.getElementById("app-search-replace-apply").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // DO SOMETHING HERE.
+    console.log("Finalized clicked!");
+    // !DO SOMETHING HERE.
+
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "none";
+    }
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
@@ -1029,11 +1082,12 @@ document.addEventListener("keydown", function (event) {
         node.hasAttribute("data-source") &&
         node.getAttribute("contenteditable") === "true"
         ) {
-        if (event.key === "Enter") {
-            highlightSRDifferences();
-            event.preventDefault(); // Prevent <br> or breaking element
-            return false;
-        }
+            document.getElementById("app-search-replace-error").style.display = "none";            
+            if (event.key === "Enter") {
+                highlightSRDifferences();
+                event.preventDefault(); // Prevent <br> or breaking element
+                return false;
+            }
         }
         node = node.parentNode;
     }
@@ -1049,6 +1103,7 @@ document.addEventListener("paste", function (event) {
         target.getAttribute("contenteditable") === "true"
     ) {
         event.preventDefault();
+        document.getElementById("app-search-replace-error").style.display = "none";   
 
         const text = (event.clipboardData || window.clipboardData)
         .getData("text/plain")
@@ -1074,9 +1129,47 @@ document.addEventListener("paste", function (event) {
     }
 });
 
-// TEMP: Apply some changes to the document.
-document.getElementById("app-search-replace-previous").addEventListener("click", function (event) {
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// TODO: Go to previous change.
+document.getElementById("app-search-replace-use-ai").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // DO SOMETHING HERE.
+    console.log("Use AI clicked!");
+    // !DO SOMETHING HERE.
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// TODO: Replace specified elements on the document.
+document.getElementById("app-search-replace-replace-button").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // DO SOMETHING HERE.
+    console.log("Replace clicked!");
     if (domContent === null) return displaySearchReplaceError("Could NOT find loaded document, try reloading the document.");
 
     const rteditor = document.querySelector('#app-search-replace .rteditor');
@@ -1100,10 +1193,42 @@ document.getElementById("app-search-replace-previous").addEventListener("click",
             }
         }
     }
+    // !DO SOMETHING HERE.
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
-// TEMP: Highlight changes on the document.
-document.getElementById("app-search-replace-next").addEventListener("click", function (event) {
+// TODO: Go to previous change.
+document.getElementById("app-search-replace-previous").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // DO SOMETHING HERE.
+    console.log("Previous clicked!");
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
+    // !DO SOMETHING HERE.
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// TODO: Go to next change.
+document.getElementById("app-search-replace-next").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // DO SOMETHING HERE.
+    console.log("Next clicked!");
     highlightSRDifferences();
-});
+    // !DO SOMETHING HERE.
 
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});

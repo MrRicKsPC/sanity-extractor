@@ -155,7 +155,7 @@ function htmlNestContent(marks, text) {
 
     // Format marked strings.
     let mark = null;
-    const nativeMarks = { "strong": "b", "em": "i", "underline": "u", "code": "code" };
+    const nativeMarks = { "strong": "b", "em": "i", "underline": "u", "strike-through": "s", "code": "code" };
     for (let i = marks.length - 1; i >= 0; i--) {
         let newmark;
         if (marks[i] in nativeMarks) {
@@ -180,7 +180,9 @@ function htmlUnnestContent(node, children, marks = []) {
             const nativeMarks = {
                 "B": "strong", "STRONG": "strong",
                 "I": "em", "EM": "em",
-                "U": "underline", "CODE": "code" };
+                "U": "underline",
+                "S": "strike-through", "DEL": "strike-through",
+                "CODE": "code", "KBD": "code", "SAMP": "code", "PRE": "code" };
             if (subnode.nodeName in nativeMarks) {
                 mark = nativeMarks[subnode.nodeName] ?? "custom";
             } else {

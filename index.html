@@ -141,6 +141,23 @@
                     <div class="prompt"><h5 class="ptlabel">Instructions</h5><textarea id="app-ai-instructions" class="pteditor"></textarea></div>
                 </div>
                 <button id="app-ai-apply" short="true" style="display: none;">Finalize<span class="small-loader" style="display: none;"></span></button>
+                <select id="app-ai-model" name="model" style="display: none;">
+                    <option value="chatgpt-4o-latest" style="color: lightgreen">ChatGPT-4o</option>
+                    <option value="gpt-4o-2024-08-06" style="color: lightgreen">GPT-4o</option>
+                    <option value="gpt-4o-mini-2024-07-18" style="color: lightgreen">GPT-4o mini</option>
+                    <option value="gpt-4.1-2025-04-14" style="color: lightgreen">GPT-4.1</option>
+                    <option value="gpt-4.1-mini-2025-04-14" style="color: lightgreen">GPT-4.1 mini</option>
+                    <option value="gpt-4.1-nano-2025-04-14" style="color: lightgreen">GPT-4.1 nano</option>
+                    <option value="o4-mini-2025-04-16" style="color: lightskyblue">o4-mini</option>
+                    <option value="o3-2025-04-16" style="color: lightskyblue">o3</option>
+                    <option value="o3-pro-2025-06-10" style="color: lightskyblue">o3-pro</option>
+                    <option value="o3-mini-2025-01-31" style="color: lightskyblue">o3-mini</option>
+                    <option value="o1-2024-12-17" style="color: lightskyblue">o1</option>
+                    <option value="o1-mini-2024-09-12" style="color: lightskyblue">o1-mini</option>
+                    <option value="o1-pro-2025-03-19" style="color: lightskyblue">o1-pro</option>
+                    <option value="gpt-4.5-preview-2025-02-27" style="color: lightcoral">GPT-4.5 (Preview)</option>
+                    <option value="gpt-4o-search-preview-2025-03-11" style="color: lightcoral">GPT-4o Search (Preview)</option>
+                </select>
                 <hr class="divider">
             </div>
 
@@ -179,24 +196,51 @@
                     <div class="spacerH"></div>
                     <button id="app-search-replace-load-fr" data-inverted="true" short="true">Load FR<span class="small-loader" data-inverted="true" style="display: none;"></span></button>
                     <div class="spacerH"></div>
-                    <button id="app-search-replace-apply" short="true" style="display: none;">Finalize<span class="small-loader" style="display: none;"></span></button>
+                    <button id="app-search-replace-apply" short="true" class="onlyifloaded" style="display: none;">Finalize<span class="small-loader" style="display: none;"></span></button>
                     <p id="app-search-replace-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
                 </div>
-                <hr class="divider">
-                    <div>
+                <hr class="divider onlyifloaded">
+
+                <div id="app-search-replace-prompt" class="onlyifloaded"><div class="prompt"><h5 class="ptlabel">AI Instructions</h5><textarea id="app-search-replace-instructions" class="pteditor"></textarea></div></div>
+                <div class="onlyifloaded">
+                    <button id="app-search-replace-use-ai" data-inverted="true" short="true">Use AI<span class="small-loader" style="display: none;"></span></button>
+                    <p id="app-ai-error" class="error-label" style="display: none;">Here is an example of error message that the user may encounter during navigation.</p>
+                </div>
+                <hr class="divider onlyifloaded">
+                <div class="onlyifloaded">
+                    <div id="app-search-replace-search"><div class="search-replace"><h5 class="ptlabel">Search value</h5><input id="app-search-replace-search-value"></input></div></div>
+                    <div class="spacerH"></div>
+                    <div id="app-search-replace-replace"><div class="search-replace"><h5 class="ptlabel">Replace value</h5><input id="app-search-replace-replace-value"></input></div></div>
+                </div>
+                <div class="onlyifloaded">
+                    <input type="checkbox" id="app-search-replace-toggle-strong">
+                    <p class="checkbox-label"><b><b>Strong</b></b></p>
+
+                    <input type="checkbox" id="app-search-replace-toggle-italic">
+                    <p class="checkbox-label"><i>Italic</i></p>
+
+                    <input type="checkbox" id="app-search-replace-toggle-underline">
+                    <p class="checkbox-label"><u>Underline</u></p>
+
+                    <input type="checkbox" id="app-search-replace-toggle-strike">
+                    <p class="checkbox-label"><s>Strike</s></p>
+
+                    <input type="checkbox" id="app-search-replace-toggle-code">
+                    <p class="checkbox-label"><code>Code</code></p>
+                </div>
+                <button id="app-search-replace-replace-button" data-inverted="true" short="true" class="onlyifloaded">Replace<span class="small-loader" style="display: none;"></span></button>
+                <hr class="divider onlyifloaded">
+                <div class="rteditor onlyifloaded"></div>
+                <div class="onlyifloaded">
                     <button id="app-search-replace-previous" short="true">Previous<span class="small-loader" style="display: none;"></span></button>
                     <div class="spacerH"></div>
                     <button id="app-search-replace-next" short="true">Next<span class="small-loader" style="display: none;"></span></button>
-                </div>
-                <hr class="divider">
-                <div class="rteditor"></div>
                 </div>
             </div>
         </div>
 
         <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
-        <script src="src/diffDOM.js"></script>
         <script src="https://unpkg.com/gpt-tokenizer"></script>
         <script src="src/xmldiff.js"></script>
         <script src="src/authentication.js"></script>
