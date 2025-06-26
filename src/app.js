@@ -7,7 +7,7 @@ let domContent = null;
 let domContentPending = false;
 
 // TODO: Remove after debugging.
-document.getElementById("app-search-replace-ids").value = "28efe934-0344-4119-bd49-ebee0f0e617b, 4292126e-8af0-4c9d-8477-95be545a1ef1, 930025ad-0b9b-4b4b-804d-8c39e6d02f85-en, drafts.f521e8d4-36f3-44d8-bd48-4696432396c7"; // TODO: Remove after debugging.
+// document.getElementById("app-search-replace-ids").value = "28efe934-0344-4119-bd49-ebee0f0e617b, 4292126e-8af0-4c9d-8477-95be545a1ef1, 930025ad-0b9b-4b4b-804d-8c39e6d02f85-en, drafts.f521e8d4-36f3-44d8-bd48-4696432396c7";
 document.getElementById("app-ai-context").value = `Je crée des modules de formation pour kinésithérapeutes sous forme de synthèses écrites, basées sur la littérature scientifique, couvrant des concepts, pathologies ou techniques en kinésithérapie.
 Ces modules doivent aider les kinésithérapeutes à actualiser leurs connaissances et à appliquer des pratiques cliniques fondées sur des preuves.
 Mes textes actuels sont trop longs, denses et peu captivants, ce qui peut freiner leur lecture. En revanche, les transcriptions de masterclass vidéo, avec un style oral, familier mais scientifique, sont plus accessibles et engageantes.
@@ -59,7 +59,8 @@ function displayAIActionError(message) {
 function displaySearchReplaceError(message) {
     document.getElementById("app-search-replace-load-en").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-load-fr").getElementsByClassName("small-loader")[0].style.display = "none";
-    document.getElementById("app-search-replace-apply").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-download").getElementsByClassName("small-loader")[0].style.display = "none";
+    document.getElementById("app-search-replace-upload").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-use-ai").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-replace-button").getElementsByClassName("small-loader")[0].style.display = "none";
     document.getElementById("app-search-replace-previous").getElementsByClassName("small-loader")[0].style.display = "none";
@@ -613,20 +614,10 @@ function stripDiffTags(str) {
 
         const span = content.querySelectorAll("span[data-diff]")[0];
         span.outerHTML = span.innerHTML;
-        // const parent = span.parentNode;
-        // const fragment = document.createRange().createContextualFragment(span.innerHTML);
-        // parent.replaceChild(fragment, span);
     }
 
     // Return stripped string.
     return content.innerHTML;
-}
-
-// Naive search and replace function.
-function replaceAllSubstrings(inputString, searchSubstring, replacementSubstring) {
-    const escapedSearch = searchSubstring.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(escapedSearch, "g");
-    return inputString.replace(regex, replacementSubstring);
 }
 
 // Download Translation Files for S&R.
@@ -664,7 +655,7 @@ async function loadTranslationFilesForSearchReplace(cont_ids, urls, request) {
 
         const parser = new DOMParser();
         domContent = parser.parseFromString(hContent, "text/html").body;
-        domContentPending = false;
+        domContentPending = true;
 
         for (const child of domContent.children) {
             for (const grandchild of child.children) {
@@ -686,13 +677,9 @@ function highlightSRDifferences() {
     if (domContent === null) return displaySearchReplaceError("Could NOT find loaded document, try reloading the document.");
 
     const rteditor = document.querySelector('#app-search-replace .rteditor');
-    domContentPending = true;
 
     // Clear document from data-diff elements.
     rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
-
-    // console.log(domContent.children);
-    // console.log(rteditor.children);
 
     if (domContent.children.length !== rteditor.children.length) return displaySearchReplaceError("Could NOT allign loaded document with original, try reloading the document.");
     for (let i = 0; i < rteditor.children.length; i++) {
@@ -709,17 +696,13 @@ function highlightSRDifferences() {
                 let hTemp = "";
                 for (let part of diff) {
                     if (part.added) {
-                        // console.log(`%c${part.value.after}`, "color: green");
                         hTemp += `<span data-diff="yes">${part.value.after}</span>`;
                         // hTemp += `<span data-diff="yes" title="${"➕"}" onclick="revertChange(this)">${part.value.after}</span>`;
                     } else if (part.removed) {
-                        // console.log(`%c${part.value.before}`, "color: red");
                         // hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${"➖"}</span>`;
                     } else if (part.replaced) {
-                        // console.log(`%c${part.value.before}%c\n%c${part.value.after}`, "color: red", "", "color: green");
                         hTemp += `<span data-diff="yes" title="${part.value.before}" onclick="revertChange(this)">${part.value.after}</span>`;
                     } else {
-                        // console.log(`%c${part.value.after}`, "color: grey");
                         hTemp += part.value.after;
                     }
                 }
@@ -757,6 +740,15 @@ appTabs.forEach(tab => {
         }
     });
 });
+
+// Catch user when trying to leave the page.
+window.addEventListener("beforeunload", (event) => {
+  if (domContentPending) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
 
 // Set initial active tab.
 const initialActiveTab = document.querySelector(".app-tab.active");
@@ -1047,8 +1039,102 @@ document.getElementById("app-search-replace-load-fr").addEventListener("click", 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
-// TODO: Apply changes to actual content on Sanity.
-document.getElementById("app-search-replace-apply").addEventListener("click", async function(event) {
+// Load documents from file as Translation files for S&R.
+document.getElementById("app-search-replace-upload-file").addEventListener("change", async function(event) {
+
+    if (event.target.value === "") return;
+
+    document.getElementById("app-search-replace-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    let hContents = [];
+    const files = Array.from(event.target.files);
+    const readPromises = files.map(readFile);
+    try {
+        const allContents = await Promise.all(readPromises);
+        allContents.forEach(fileData => { // fileData = { name, content }
+            const parser = new DOMParser();
+            let hDivs = parser.parseFromString(fileData["content"], "text/html").body.childNodes;
+            hDivs.forEach(div => {
+                if (div.nodeType === Node.ELEMENT_NODE) {
+                    hContents.push(div);
+                }
+            });
+        });
+    } catch (error) {
+        return displaySearchReplaceError(error);
+    }
+    if (hContents.length == 0) return displaySearchReplaceError("Please provide at least one valid Translation File.");
+
+    if (domContentPending && !confirm("Some of your changes have NOT been applied yet.\nAre you sure you want to reload your Sanity documents?")) return;
+    if (domContentPending && !confirm("All pending changes will be lost. Reload documents anyway?")) return;
+
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "none";
+    }
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    rteditor.innerHTML = "";
+    domContent = null;
+    domContentPending = false;
+
+    const cont_ids = [];
+    for (let element of hContents) {
+        cont_ids.push(element.getAttribute("id"));
+    }
+    if (cont_ids.length == 0) return displaySearchReplaceError("The file does NOT seem to contain valid Sanity document IDs, please choose a different file.");
+
+    let urls = [];
+    chunkArray(cont_ids, ID_CHUNKSIZE).forEach(chunk => {
+        const query = `*[_id in ${JSON.stringify(chunk)}]`;
+        const url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${encodeURIComponent(query)}`;
+        urls.push(url);
+    });
+
+    const request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    await loadTranslationFilesForSearchReplace(cont_ids, urls, request);
+
+    let hContent = "";
+    for (let element of hContents) {
+        hContent += `${stripTranslationFiles(element.outerHTML)}\n`;
+    }
+    hContent = applyStyleToHTML(hContent);
+
+    const parser = new DOMParser();
+    rteditor.innerHTML = parser.parseFromString(hContent, "text/html").body.innerHTML;
+
+    for (const child of rteditor.children) {
+        for (const grandchild of child.children) {
+            if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
+                grandchild.setAttribute("contenteditable", "true");
+            }
+        }
+    }
+
+    event.target.value = "";
+
+    for (let element of document.getElementsByClassName("onlyifloaded")) {
+        element.style.display = "";
+    }
+});
+
+// Load documents from file as Translation files for S&R.
+document.getElementById("app-search-replace-upload").addEventListener("click", async function(event) {
+    if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
+    this.getElementsByClassName("small-loader")[0].style.display = "";
+    document.getElementById("app-search-replace-error").style.display = "none";
+    let [project, dataset, token, automation, secret] = __words__;
+    if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
+
+    // Open file picker.
+    const fileInput = document.getElementById("app-search-replace-upload-file");
+    fileInput.click();
+
+    this.getElementsByClassName("small-loader")[0].style.display = "none";
+});
+
+// Download changes as Translation file.
+document.getElementById("app-search-replace-download").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
     document.getElementById("app-search-replace-error").style.display = "none";
@@ -1056,13 +1142,18 @@ document.getElementById("app-search-replace-apply").addEventListener("click", as
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    // DO SOMETHING HERE.
-    console.log("Finalized clicked!");
-    // !DO SOMETHING HERE.
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
 
-    for (let element of document.getElementsByClassName("onlyifloaded")) {
-        element.style.display = "none";
+    for (const child of rteditor.children) {
+        for (const grandchild of child.children) {
+            if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
+                grandchild.removeAttribute("contenteditable");
+            }
+        }
     }
+
+    let hContent = applyStyleToHTML(rteditor.innerHTML);
+    downloadFile(hContent, "Search & Replace - Changes.html", "text/html");
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
@@ -1143,7 +1234,7 @@ document.addEventListener("paste", function (event) {
 
 
 
-// TODO: Go to previous change.
+// TODO: Apply AI instructions to document.
 document.getElementById("app-search-replace-use-ai").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
@@ -1159,7 +1250,7 @@ document.getElementById("app-search-replace-use-ai").addEventListener("click", a
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
-// TODO: Replace specified elements on the document.
+// Replace specified elements on the document.
 document.getElementById("app-search-replace-replace-button").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
@@ -1168,37 +1259,55 @@ document.getElementById("app-search-replace-replace-button").addEventListener("c
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    // DO SOMETHING HERE.
-    console.log("Replace clicked!");
+    // Read user text from interface.
+    const toFind = document.getElementById("app-search-replace-search-value").value;
+    const toReplace = document.getElementById("app-search-replace-replace-value").value;
+    if (!toFind || !toFind.length)
+        return displaySearchReplaceError("Please specify a value to be replaced.");
+    if (!toReplace || !toReplace.length)
+        return displaySearchReplaceError("Please specify a value to replaced with.");
+
+    // Read user marks from interface.
+    const marks = [];
+    if (document.getElementById("app-search-replace-toggle-strong").checked)
+        marks.push("b");
+    if (document.getElementById("app-search-replace-toggle-italic").checked)
+        marks.push("i");
+    if (document.getElementById("app-search-replace-toggle-underline").checked)
+        marks.push("u");
+    if (document.getElementById("app-search-replace-toggle-strike").checked)
+        marks.push("s");
+    if (document.getElementById("app-search-replace-toggle-code").checked)
+        marks.push("code");
+
+    // Check if content is loaded.
     if (domContent === null) return displaySearchReplaceError("Could NOT find loaded document, try reloading the document.");
 
+    // Rich text editor handle.
     const rteditor = document.querySelector('#app-search-replace .rteditor');
     domContentPending = true;
 
     // Clear document from data-diff elements.
     rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
 
+    // replace in every child and grandchild.
     for (const child of rteditor.children) {
         for (const grandchild of child.children) {
             if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "Iliotibial", "Ilio-Tibial");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "iliotibial", "ilio-tibial");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "movement", "motion");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "available", "accessible");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "an elastic band", "a resitance band");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "elastic band", "resitance band");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "with the", "<b>with the</b>");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "et al", "<b>et al</b>");
-                grandchild.innerHTML = replaceAllSubstrings(grandchild.innerHTML, "Noble test", "Nobles test");
+
+                // Apply raw replacement.
+                const original = grandchild.innerHTML;
+                grandchild.innerHTML = replaceStringInInnerHTML(original, toFind, toReplace, marks);
             }
         }
     }
-    // !DO SOMETHING HERE.
+    
+    highlightSRDifferences();
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
-// TODO: Go to previous change.
+// Hide changes.
 document.getElementById("app-search-replace-previous").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
@@ -1207,16 +1316,13 @@ document.getElementById("app-search-replace-previous").addEventListener("click",
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    // DO SOMETHING HERE.
-    console.log("Previous clicked!");
     const rteditor = document.querySelector('#app-search-replace .rteditor');
     rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
-    // !DO SOMETHING HERE.
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
 
-// TODO: Go to next change.
+// Show changes.
 document.getElementById("app-search-replace-next").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
     this.getElementsByClassName("small-loader")[0].style.display = "";
@@ -1225,10 +1331,7 @@ document.getElementById("app-search-replace-next").addEventListener("click", asy
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    // DO SOMETHING HERE.
-    console.log("Next clicked!");
     highlightSRDifferences();
-    // !DO SOMETHING HERE.
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
