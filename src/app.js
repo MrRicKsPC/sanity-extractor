@@ -1,13 +1,22 @@
 const ID_SEPARATORS = /[\(\[\{\|\)\]\}|,:;\"`'\s]/;
 const ID_CHUNKSIZE = 300;
 let MULTIFILE_LIMIT = 10;
+
+const SNR_AI_SIMULATION = false;
+// const SNR_MAX_TOKEN_PER_BATCH = 0;
+const SNR_MAX_TOKEN_PER_BATCH = 3000;
+const SNR_AI_MODEL = "gpt-4.1-nano-2025-04-14";
+// const SNR_AI_MODEL = "gpt-4.1-mini-2025-04-14";
+
 let __words__ = [null, null, null, null, null];
 
 let domContent = null;
 let domContentPending = false;
 
 // TODO: Remove after debugging.
+// document.getElementById("app-search-replace-ids").value = "86e4f564-0fbe-4d99-a49a-8e3c40b12ec5";
 // document.getElementById("app-search-replace-ids").value = "28efe934-0344-4119-bd49-ebee0f0e617b, 4292126e-8af0-4c9d-8477-95be545a1ef1, 930025ad-0b9b-4b4b-804d-8c39e6d02f85-en, drafts.f521e8d4-36f3-44d8-bd48-4696432396c7";
+// document.getElementById("app-search-replace-instructions").value = "Remplace le terme \"physiothérapie\" par \"kinésithérapie\" s'il est présent dans le texte.\nNe remplace rien s'il n'y a rien à remplacer.";
 document.getElementById("app-ai-context").value = `Je crée des modules de formation pour kinésithérapeutes sous forme de synthèses écrites, basées sur la littérature scientifique, couvrant des concepts, pathologies ou techniques en kinésithérapie.
 Ces modules doivent aider les kinésithérapeutes à actualiser leurs connaissances et à appliquer des pratiques cliniques fondées sur des preuves.
 Mes textes actuels sont trop longs, denses et peu captivants, ce qui peut freiner leur lecture. En revanche, les transcriptions de masterclass vidéo, avec un style oral, familier mais scientifique, sont plus accessibles et engageantes.
@@ -90,6 +99,20 @@ function readFile(file) {
         reader.onerror = () => reject(new Error(`Unable to read file: ${file.name}:`));
         reader.readAsText(file);
     });
+}
+
+// Get opening tag of an HTML element as string.
+function getOpeningTag(el) {
+    const tagName = el.tagName.toLowerCase();
+    const attrs = Array.from(el.attributes)
+        .map(attr => `${attr.name}="${attr.value}"`)
+        .join(" ");
+    return `<${tagName}${attrs ? " " + attrs : ""}>`;
+}
+
+// Get closing tag of an HTML element as string.
+function getClosingTag(el) {
+    return `</${el.tagName.toLowerCase()}>`;
 }
 
 // Download Translation Files.
@@ -377,6 +400,28 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     console.log("[SUCCESS] - Preview document generated on Sanity.");
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function existsOnSanity(id) {
     const [project, dataset, token, automation, secret] = __words__;
 
@@ -552,9 +597,9 @@ function stripTranslationFiles(htmlString) {
     const domElement = doc.body.firstChild;
     let result = "";
     for (const child of domElement.children) {
-        if (child.tagName.toLowerCase() !== "a") {
-            result += `  ${child.outerHTML}\n`;
-        }
+        if (child.tagName.toLowerCase() === "a") continue;
+        if (!child.innerHTML.trim().length) continue;
+        result += `  ${child.outerHTML}\n`;
     }
     domElement.innerHTML = `\n${result}`;
     return domElement.outerHTML;
@@ -571,36 +616,6 @@ function revertChange(element) {
         element.setAttribute("data-diff", "yes");
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Strip an html string from diff tags.
 function stripDiffTags(str) {
@@ -669,6 +684,7 @@ async function loadTranslationFilesForSearchReplace(cont_ids, urls, request) {
     } catch (error) {
         return displaySearchReplaceError("Unable to parse Sanity API response.");
     }
+
     document.getElementById("app-document-download").getElementsByClassName("small-loader")[0].style.display = "none";
 }
 
@@ -1116,6 +1132,8 @@ document.getElementById("app-search-replace-upload-file").addEventListener("chan
     for (let element of document.getElementsByClassName("onlyifloaded")) {
         element.style.display = "";
     }
+
+    highlightSRDifferences();
 });
 
 // Load documents from file as Translation files for S&R.
@@ -1152,7 +1170,7 @@ document.getElementById("app-search-replace-download").addEventListener("click",
         }
     }
 
-    let hContent = applyStyleToHTML(rteditor.innerHTML);
+    let hContent = applyStyleToHTML(stripDiffTags(rteditor.innerHTML));
     downloadFile(hContent, "Search & Replace - Changes.html", "text/html");
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
@@ -1234,6 +1252,13 @@ document.addEventListener("paste", function (event) {
 
 
 
+
+
+
+
+
+
+
 // TODO: Apply AI instructions to document.
 document.getElementById("app-search-replace-use-ai").addEventListener("click", async function(event) {
     if (this.getElementsByClassName("small-loader")[0].style.display === "") return;
@@ -1243,9 +1268,71 @@ document.getElementById("app-search-replace-use-ai").addEventListener("click", a
     let [project, dataset, token, automation, secret] = __words__;
     if (!project || !dataset || !token || !automation || !secret ) return displayAuthError("Please provide valid Sanity API & Sanity Automations API credentials.");
 
-    // DO SOMETHING HERE.
-    console.log("Use AI clicked!");
-    // !DO SOMETHING HERE.
+    // Read user prompt from interface.
+    const prompt = document.getElementById("app-search-replace-instructions").value.trim();
+    if (!prompt || !prompt.length)
+        return displaySearchReplaceError("Please give instructions to the AI agent.");
+
+    // Rich text editor handle.
+    const rteditor = document.querySelector('#app-search-replace .rteditor');
+    rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
+    if (!rteditor.innerHTML.length) return displaySearchReplaceError("Please load at least one document before sending AI instructions.");
+
+    // Send to AI in batches for fewer requests.
+    let batches = [];
+    let batch = "";
+    for (const child of rteditor.children) {
+        batch += `<div id="${child.getAttribute("id")}">\n`;
+        for (const grandchild of child.children) {
+            if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
+                if (countTokens(batch + grandchild.outerHTML + "</div>") > SNR_MAX_TOKEN_PER_BATCH) {
+                    if (batch.length) {
+                        batch += "</div>";
+                        if (SNR_AI_SIMULATION) {
+                            batches.push(AI_Custom_Simulation(SNR_AI_MODEL, "html", prompt.split("\n"), undefined, batch));
+                        } else {
+                            batches.push(AI_Custom(SNR_AI_MODEL, "html", prompt.split("\n"), undefined, batch));
+                        }
+                        batch = `<div id="${child.getAttribute("id")}">\n`;
+                    }
+                }
+                batch += `  ${grandchild.outerHTML}\n`;
+            }
+        }
+        batch += "</div>\n";
+    }
+    if (SNR_AI_SIMULATION) {
+        batches.push(AI_Custom_Simulation(SNR_AI_MODEL, "html", prompt.split("\n"), undefined, batch));
+    } else {
+        batches.push(AI_Custom(SNR_AI_MODEL, "html", prompt.split("\n"), undefined, batch));
+    }
+
+    // Wait for all batches to be done.
+    batches = await Promise.all(batches);
+
+    // Apply changes to rich text editor.
+    const parser = new DOMParser();
+    for (let batch of batches) {
+        const chunks = parser.parseFromString(batch, "text/html").body.childNodes;
+        for (let chunk of chunks) {
+            const paragraphs = chunk.children;
+            const content = rteditor.querySelector(`[id="${chunk.getAttribute("id")}"]`);
+            if (content === null) {
+                console.log(`Corrupted chunk targetting "${chunk.getAttribute("id")}", dropping...`);
+                continue;
+            }
+            for (let paragraph of paragraphs) {
+                const line = content.querySelector(`[data-source="${paragraph.getAttribute("data-source")}"]`);
+                if (line === null) {
+                    console.log(`Corrupted paragraph targetting "${paragraph.getAttribute("data-source")}", dropping...`);
+                    continue;
+                }
+                line.innerHTML = paragraph.innerHTML;
+            }
+        }
+    }
+
+    highlightSRDifferences();
 
     this.getElementsByClassName("small-loader")[0].style.display = "none";
 });
@@ -1263,9 +1350,7 @@ document.getElementById("app-search-replace-replace-button").addEventListener("c
     const toFind = document.getElementById("app-search-replace-search-value").value;
     const toReplace = document.getElementById("app-search-replace-replace-value").value;
     if (!toFind || !toFind.length)
-        return displaySearchReplaceError("Please specify a value to be replaced.");
-    if (!toReplace || !toReplace.length)
-        return displaySearchReplaceError("Please specify a value to replaced with.");
+        return displaySearchReplaceError("Please specify a value to replace.");
 
     // Read user marks from interface.
     const marks = [];
@@ -1290,14 +1375,13 @@ document.getElementById("app-search-replace-replace-button").addEventListener("c
     // Clear document from data-diff elements.
     rteditor.innerHTML = stripDiffTags(rteditor.innerHTML);
 
-    // replace in every child and grandchild.
+    // Replace in every child and grandchild.
     for (const child of rteditor.children) {
         for (const grandchild of child.children) {
             if (grandchild.nodeType === 1 && grandchild.hasAttribute("data-source")) {
 
                 // Apply raw replacement.
-                const original = grandchild.innerHTML;
-                grandchild.innerHTML = replaceStringInInnerHTML(original, toFind, toReplace, marks);
+                grandchild.innerHTML = replaceStringInInnerHTML(grandchild.innerHTML, toFind, toReplace, marks);
             }
         }
     }

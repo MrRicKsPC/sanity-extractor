@@ -32,9 +32,10 @@ function splitSubPart(subpart) {
 // Rewrite a Sanity block.
 async function AI_Rewrite_Simulation(block) {
 
-    // Validate response data.
-    await sleep(3000);
+    // Simulate response data.
+    await sleep(1000);
     const data = block;
+    console.log(`AI_Custom_Simulation() called: ~${countTokens(JSON.stringify(block)) + 500} tokens would have been used.`);
 
     // Return result.
     return data;
@@ -43,9 +44,10 @@ async function AI_Rewrite_Simulation(block) {
 // Apply custom prompt on a Sanity JSON/HTML block.
 async function AI_Custom_Simulation(model, format, instructions, context, block) {
 
-    // Validate response data.
-    await sleep(3000);
+    // Simulate response data.
+    await sleep(1000);
     const data = block;
+    console.log(`AI_Custom_Simulation() called: ~${countTokens(JSON.stringify(block)) + 500} tokens would have been used.`);
 
     // Return result.
     return data;

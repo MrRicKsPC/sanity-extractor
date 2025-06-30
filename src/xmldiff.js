@@ -305,7 +305,7 @@ function isValidXML(str) {
 
 
 
-// Tokenize HTML into words and tags.
+// Tokenize HTML into tags.
 function tokenizeHTML(input) {
 
     const tokens = [];
@@ -314,17 +314,21 @@ function tokenizeHTML(input) {
     while (i < input.length) {
 
         if (input[i] === "<") {
-            // We're at a tag start, find the closing '>'
-            let tagEnd = input.indexOf('>', i);
+
+            // We're at a tag start, find the closing ">"
+            let tagEnd = input.indexOf(">", i);
             if (tagEnd === -1) {
                 // No closing > found, treat rest as normal characters
                 tokens.push(...input.slice(i).split(''));
                 break;
             }
+
             // Extract the full tag token
             tokens.push(input.slice(i, tagEnd + 1));
             i = tagEnd + 1;
+
         } else {
+
             // Not a tag, push single character token
             tokens.push(input[i]);
             i++;
@@ -336,28 +340,35 @@ function tokenizeHTML(input) {
 
 // Helper: split a string into words and non-words (spaces, punctuation)
 function splitText(text) {
-    const regex = /\w+|\s+|\W/g;
+    const regex = /(\p{L}+|\p{N}+|\s+|[^\p{L}\p{N}\s]+)/gu;
     return text.match(regex) || [];
 }
 
+// Tokenize HTML into words and tags.
 function tokenizeHTMLByWords(input) {
     const tokens = [];
     let i = 0;
 
     while (i < input.length) {
-        if (input[i] === '<') {
+
+        if (input[i] === "<") {
+
             // Extract full tag token
-            const tagEnd = input.indexOf('>', i);
+            const tagEnd = input.indexOf(">", i);
             if (tagEnd === -1) {
+
                 // No closing >, treat rest as normal text
                 tokens.push(...splitText(input.slice(i)));
                 break;
             }
+
             tokens.push(input.slice(i, tagEnd + 1));
             i = tagEnd + 1;
+
         } else {
+
             // Extract text until next tag or end
-            let nextTagStart = input.indexOf('<', i);
+            let nextTagStart = input.indexOf("<", i);
             if (nextTagStart === -1) nextTagStart = input.length;
 
             const textSegment = input.slice(i, nextTagStart);
