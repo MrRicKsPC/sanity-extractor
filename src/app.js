@@ -5,10 +5,12 @@ let MULTIFILE_LIMIT = 10;
 const SNR_AI_SIMULATION = false;
 // const SNR_MAX_TOKEN_PER_BATCH = 0;
 const SNR_MAX_TOKEN_PER_BATCH = 3000;
-const SNR_AI_MODEL = "gpt-4.1-nano-2025-04-14";
-// const SNR_AI_MODEL = "gpt-4.1-mini-2025-04-14";
+// const SNR_AI_MODEL = "gpt-4.1-nano-2025-04-14";
+const SNR_AI_MODEL = "gpt-4.1-mini-2025-04-14";
 
 let __words__ = [null, null, null, null, null];
+
+let latestType = null;
 
 let domContent = null;
 let domContentPending = false;
@@ -24,6 +26,14 @@ Je te fournis un texte que je veux retravailler pour le rendre fluide, attrayant
 document.getElementById("app-ai-instructions").value = `Synthétise légèrement pour aller à l’essentiel, sans perdre les idées clés ni les sources citées, qui garantissent la crédibilité.
 Rends le texte accrocheur dès le début et engageant jusqu’à la fin, sans utiliser d’émoticônes.
 Adopte un ton conversational, comme dans une masterclass orale, qui parle directement au kinésithérapeute : qu’est-ce qui va m’aider dans ma pratique quotidienne ?`
+
+// Join elements of a list with and.
+function joinWithAnd(arr) {
+    if (arr.length === 0) return "";
+    if (arr.length === 1) return arr[0];
+    if (arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+    return `${arr.slice(0, -1).join(", ")}, and ${arr[arr.length - 1]}`;
+}
 
 // Display download error to user.
 function displayDownloadError(message) {
@@ -380,7 +390,6 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
         paragraphs[i] = AI_Custom(model, "json", instructions, context, paragraphs[i]);
     }
     const rewritten = (await Promise.all(paragraphs)).flat();
-    // const rewritten = await AI_Custom(model, "json", instructions, context, srcModule["parts"][part]["subparts"][subpart]["content"]);
     dstModule["parts"][part]["subparts"][subpart]["content"] = rewritten;
 
     // Update copy of content back to Sanity API.
@@ -393,6 +402,81 @@ async function rewriteModuleSubpart(moduleId, part, subpart) {
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
     request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
     request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": dstModule}]});
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    console.log("[SUCCESS] - Preview document generated on Sanity.");
+}
+
+// Rewrite a specific Sanity root block.
+async function rewriteSanityRootBlock(contentId, contentKey) {
+    const [project, dataset, token, automation, secret] = __words__;
+    const aiContentId = (contentId.trim().startsWith("drafts.")) ? `${contentId}-ai` : `drafts.${contentId}-ai`;
+
+    // Get user prompt from interface.
+    const context = document.getElementById("app-ai-context").value.split("\n").filter(str => str.trim() !== "");
+    const instructions = document.getElementById("app-ai-instructions").value.split("\n").filter(str => str.trim() !== "");
+    if (!instructions.length) return displayAIActionError("Please give instructions to the AI agent.");
+
+    // Get user model from interface.
+    const model = document.getElementById("app-ai-model").value;
+    if (!model.length) return displayAIActionError("Please give instructions to the AI agent.");
+
+    // Fetch source content from Sanity API.
+    let url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${contentId}"]`)
+    }`;
+    let request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    let response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    let data = await response.json();
+    if (data["result"].length <= 0) return displayAIActionError(`Could NOT find Sanity content.`);
+
+    let srcContent = data["result"][0];
+
+    // Fetch destination content from Sanity API.
+    url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
+        encodeURIComponent(`*[_id=="${aiContentId}"]`)
+    }`;
+    request = { "method": "GET", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+
+    response = await fetch(url, request);
+    if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
+
+    let dstContent = null;
+
+    data = await response.json();
+    if (data["result"].length <= 0) {
+        dstContent = JSON.parse(JSON.stringify(srcContent));
+    } else {
+        dstContent = data["result"][0];
+    }
+
+    if (dstContent["_type"] !== srcContent["_type"])
+        dstContent = JSON.parse(JSON.stringify(srcContent));
+
+    // Apply prompt on target root block (paragraph by paragraph).
+    const paragraphs = splitSubPart(srcContent[contentKey]);
+    for (let i = 0; i < paragraphs.length; i++) {
+        if (paragraphs[i][0]["_type"] !== "block") continue;
+        paragraphs[i] = AI_Custom(model, "json", instructions, context, paragraphs[i]);
+    }
+    const rewritten = (await Promise.all(paragraphs)).flat();
+    dstContent[contentKey] = rewritten;
+
+    // Update copy of content back to Sanity API.
+    dstContent["_id"] = aiContentId;
+    dstContent["title"] = `[AI Copy] - ${srcContent["title"]}`;
+    delete dstContent["_rev"];
+    delete dstContent["_createdAt"];
+    delete dstContent["_updatedAt"];
+    
+    url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
+    request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
+    request["body"] = JSON.stringify({ "mutations": [{ "createOrReplace": dstContent}]});
 
     response = await fetch(url, request);
     if (!response.ok) return displayAIActionError(`Unable to connect to Sanity API (error: ${response.status}).`);
@@ -451,8 +535,10 @@ async function compareOriginalWithAIContent() {
     const moduleId = cont_ids[0];
     const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
 
+    if (latestType === null) return displayAIActionError("Could NOT load comparison due to type error. Please open the documents manually on Sanity.");
+
     // const compareLink = `https://fullphysio.sanity.studio/structure/knowledge;modulesFr;${moduleId};${aiModuleId}`;
-    const compareLink = `https://fullphysio.sanity.studio/structure/__edit__${moduleId}%2Ctype%3DebpModule;${aiModuleId}`;
+    const compareLink = `https://fullphysio.sanity.studio/structure/__edit__${moduleId}%2Ctype%3D${latestType};${aiModuleId}`;
     window.open(compareLink, "_blank");
 
     console.log(compareLink);
@@ -486,7 +572,6 @@ async function applyAIContentAndOverwrite() {
     if (data["result"].length <= 0) return displayAIActionError(`Could NOT find Sanity content.`);
 
     let srcModule = data["result"][0];
-    if (srcModule["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
 
     // Fetch target content from Sanity API.    
     url = `https://${project}.api.sanity.io/v1/data/query/${dataset}?query=${
@@ -501,12 +586,14 @@ async function applyAIContentAndOverwrite() {
     if (data["result"].length <= 0) return displayAIActionError(`Could NOT find AI-generated Sanity content.`);
 
     let trgModule = data["result"][0];
-    if (trgModule["_type"] !== "ebpModule") return displayAIActionError(`AI-generated Sanity content is NOT a module.`);
+    if (srcModule["_type"] !== trgModule["_type"]) return displayAIActionError(`Sanity contents are NOT of same type.`);
 
     // Patch source module with target module.
-    srcModule["abstract"] = trgModule["abstract"];
-    srcModule["bibliography"] = trgModule["bibliography"];
-    srcModule["parts"] = trgModule["parts"];
+    for (let entry of Object.entries(trgModule)) {
+        if (entry[0].trim()[0] === "_") continue;
+        if (entry[0].trim() === "title") continue;
+        srcModule[entry[0]] = trgModule[entry[0]];
+    }
 
     url = `https://${project}.api.sanity.io/v1/data/mutate/${dataset}`;
     request = { "method": "POST", "headers": { "Content-Type": "application/json", "Authorization": `Bearer ${token}` }};
@@ -554,34 +641,66 @@ async function loadModuleForAI() {
 
     const moduleId = sanityContent["_id"];
     const aiModuleId = (moduleId.trim().startsWith("drafts.")) ? `${moduleId}-ai` : `drafts.${moduleId}-ai`;
+    const contentType = sanityContent["_type"];
+    const supportedTypes = {
+        "ebpModule": { "abstract": "Abstract" },
+        "masterclass": { "content": "Content" },
+        "clinicalTest": { "content": "Content" },
+        "webinar": { "description": "Description" },
+    };
+    const targets = supportedTypes[contentType] || null;
 
     // Add subsection AI action buttons.
     document.getElementById("app-ai-compare").style.display = "none";
     document.getElementById("app-ai-apply").style.display = "none";
     document.getElementById("app-ai-prompts").style.display = "none";
     document.getElementById("app-ai-model").style.display = "none";
+
     deleteSubParts();
-    pushModuleTitle(sanityContent["title"]);
-    pushSubPartSeparator();
-    if (sanityContent["_type"] !== "ebpModule") return displayAIActionError(`Sanity content is NOT a module.`);
-    for (let i = 0; i < sanityContent["parts"].length; i++) {
-        const part = sanityContent["parts"][i];
-        pushPartTitle(part["title"]);
-        for (let j = 0; j < part["subparts"].length; j++) {
-            const subpart = part["subparts"][j];
+    latestType = null;
+
+    if (targets !== null) {
+        latestType = sanityContent["_type"];
+        pushModuleTitle(sanityContent["title"]);
+        pushSubPartSeparator();
+        for (let target of Object.entries(targets)) {
             let tokenCount = [];
-            for (let chunk of splitSubPart(subpart["content"])) {
+            for (let chunk of splitSubPart(sanityContent[target[0]])) {
                 if (chunk[0]["_type"] !== "block") continue;
                 tokenCount.push(countTokens(chunk) + 500);
             }
-            pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, tokenCount, async function() {
-                await rewriteModuleSubpart(moduleId, i, j);
+            pushSubPart(target[1], `${contentType}_${target[0]}`, tokenCount, async function() {
+                await rewriteSanityRootBlock(moduleId, target[0]);
                 document.getElementById("app-ai-compare").style.display = "";
                 document.getElementById("app-ai-apply").style.display = "";
             });
         }
-        pushSubPartSeparator();
+
+        if (contentType === "ebpModule") {
+            pushSubPartSeparator();
+            for (let i = 0; i < sanityContent["parts"].length; i++) {
+                const part = sanityContent["parts"][i];
+                pushPartTitle(part["title"]);
+                for (let j = 0; j < part["subparts"].length; j++) {
+                    const subpart = part["subparts"][j];
+                    let tokenCount = [];
+                    for (let chunk of splitSubPart(subpart["content"])) {
+                        if (chunk[0]["_type"] !== "block") continue;
+                        tokenCount.push(countTokens(chunk) + 500);
+                    }
+                    pushSubPart(subpart["title"], `${i + 1}_${j + 1}`, tokenCount, async function() {
+                        await rewriteModuleSubpart(moduleId, i, j);
+                        document.getElementById("app-ai-compare").style.display = "";
+                        document.getElementById("app-ai-apply").style.display = "";
+                    });
+                }
+                pushSubPartSeparator();
+            }
+        }
+    } else {
+        return displayAIActionError(`Unknown Sanity content type. Only ${joinWithAnd(Object.keys(supportedTypes))} supported yet.`);
     }
+
     document.getElementById("app-ai-prompts").style.display = "";
     document.getElementById("app-ai-model").style.display = "";
     if (await existsOnSanity(aiModuleId)) {
