@@ -8,33 +8,33 @@ PATHS = {
     "exercise": ["title", "description", "thumbnail"],
 
     // Clinical tests.
-    "clinicalTest": ["title", "thumbnail", "content"],
+    "clinicalTest": ["title", "thumbnail", "richText"],
 
     // Masterclasses.
-    "masterclass": ["title", "thumbnail", "content"],
+    "masterclass": ["title", "thumbnail", "richText"],
 
     // Webinars.
-    "webinar": ["title", "description", "thumbnail", "transcription"],
+    "webinar": ["title", "richText", "thumbnail"],
 
     // Clinical practices.
-    "clinicalPractice": ["title", "description", "thumbnail"],
+    "clinicalPractice": ["title", "richText", "thumbnail"],
 
     // En tendon.
-    "enTendon": ["title", "description", "thumbnail"],
+    "enTendon": ["title", "richText", "thumbnail"],
 
     // Contributors.
     "contributor": ["profilePicture", "name", "professionDescription", "biography"],
 
     // Program templates.
-    "protocol": ["title", "thumbnail", "thumbnail"],
+    "protocol": ["title", "thumbnail", "sessions"],
     "session": ["description", "exerciseInstances"],
     "exerciseInstance": ["duration", "frequency", "reps", "sets", "tempo", "rest"],
     
     // Protocols & clusters.
-    "protocolAndCluster": ["title", "thumbnail", "content"],
+    "protocolAndCluster": ["title", "thumbnail", "richText"],
     
     // Clinical tools.
-    "clinicalTool": ["title", "description", "thumbnail", "pdf"],
+    "clinicalTool": ["title", "richText", "thumbnail", "pdf"],
     
     // Academy courses.
     "academyCourse": ["title", "thumbnail", "about", "durationText", "trainingPrerequisites", "courseObjectives", "coursePlan", "evaluationMethod", "pedagogicalMethod", "trainingSheet"],
